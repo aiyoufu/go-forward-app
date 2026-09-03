@@ -1,0 +1,88 @@
+{
+  // build-profile 模板。
+  //
+  // 用法：复制本文件为仓库根目录的 build-profile.json5
+  //   cp build-profile.json5.example build-profile.json5
+  //
+  // build-profile.json5 已被 .gitignore 忽略，不会进版本库。
+  //
+  // signingConfigs 留空即可：DevEco Studio → File → Project Structure →
+  // Signing Configs 勾选 Automatically generate signature，会自动写入本机的
+  // 调试证书路径与加密口令。真机分发再按华为开发者后台流程替换为发布签名。
+  "app": {
+    "products": [
+      {
+        "name": "default",
+        "signingConfig": "default",
+        "targetSdkVersion": "6.1.1(24)",
+        "compatibleSdkVersion": "6.1.1(24)",
+        "runtimeOS": "HarmonyOS",
+        "buildOption": {
+          "strictMode": {
+            "caseSensitiveCheck": true,
+            "useNormalizedOHMUrl": true
+          }
+        }
+      }
+    ],
+    "buildModeSet": [
+      {
+        "name": "debug"
+      },
+      {
+        "name": "release"
+      }
+    ],
+    "signingConfigs": []
+  },
+  "modules": [
+    {
+      "name": "entry",
+      "srcPath": "./entry",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "common",
+      "srcPath": "./common",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "service",
+      "srcPath": "./service",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "components",
+      "srcPath": "./components",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
+    }
+  ]
+}

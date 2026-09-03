@@ -1,0 +1,30 @@
+/**
+ * Supabase 连接配置模板。
+ *
+ * 用法：复制本文件为同目录的 SupabaseConfig.ets，再填入自己 Supabase 项目的值。
+ *   cp common/src/main/ets/common/SupabaseConfig.ets.example \
+ *      common/src/main/ets/common/SupabaseConfig.ets
+ *
+ * 后缀刻意用 .ets.example 而非 .example.ets：src/main/ets 下凡以 .ets 结尾的
+ * 文件都会被 hvigor 编译进 HAR，也会被 scripts 的 .ets 清单统计计入。
+ *
+ * 取值位置：Supabase 控制台 → Project Settings → API
+ *   - URL       = Project URL
+ *   - ANON_KEY  = Project API keys / anon public
+ *
+ * SupabaseConfig.ets 已被 .gitignore 忽略，不会进版本库。
+ * 只允许填 anon 公钥；service_role 私钥一律不得出现在客户端代码里。
+ *
+ * 留空时 App 可以正常构建运行，登录页会提示「请先配置 Supabase URL 和 ANON_KEY」。
+ * 注意：本仓库不含 SQL。建库脚本在 go-forward-desktop 仓库的 supabase/migrations/（48 个迁移），
+ *       跑完即有本端需要的表、bucket 与 RLS 策略；另有两处迁移未覆盖的缺口，
+ *       详见 README 的「自备后端（Supabase）」一节。
+ */
+export class SupabaseConfig {
+  static readonly URL: string = ''
+  static readonly ANON_KEY: string = ''
+
+  static isConfigured(): boolean {
+    return SupabaseConfig.URL.length > 0 && SupabaseConfig.ANON_KEY.length > 0
+  }
+}

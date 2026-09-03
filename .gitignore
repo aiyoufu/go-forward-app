@@ -1,0 +1,48 @@
+/node_modules
+oh_modules/
+.DS_Store
+*.log
+/local.properties
+/.idea
+**/build
+/.hvigor
+.cxx
+/.clangd
+/.clang-format
+/.clang-tidy
+**/.test
+/dist
+/.appanalyzer
+/.codegenie
+.codepilot-uploads
+
+# 本地头脑风暴 / 视觉对照会话
+.superpowers/
+
+# DevEco 本地签名物料（机器相关，含敏感私钥）
+/signature/
+/signing/
+*.p12
+*.cer
+*.p7b
+
+# 本机配置文件：仓库只保留 .example 模板，克隆后复制一份再填自己的值
+#   build-profile.json5  含本机签名物料路径与加密口令
+#   SupabaseConfig.ets   含开发者自己的 Supabase 项目 URL 与 anon key
+/build-profile.json5
+/common/src/main/ets/common/SupabaseConfig.ets
+
+# Agent / IDE 本机 MCP 工具 schema 缓存（与应用无关）
+/mcps/
+
+# CommandCode 本机会话数据（taste 学习记录、权限配置，机器相关不入库）
+/.commandcode/
+
+# Agent 协同规则与技能
+/.agents/
+
+# 本机 harness 工具配置（core-change-watch 边界等，机器相关不入库）
+/.better-harness/
+
+.claude/
+.qoder

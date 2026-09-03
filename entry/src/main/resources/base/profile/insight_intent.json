@@ -1,0 +1,116 @@
+{
+  "insightIntents": [
+    {
+      "domain": "LocalDomain",
+      "intentName": "OpenAILive",
+      "intentVersion": "1.0.1",
+      "srcEntry": "./ets/insightintents/OpenAILiveExecutor.ets",
+      "displayName": "$string:open_ai_live_name",
+      "displayDescription": "$string:open_ai_live_desc",
+      "uiAbility": {
+        "ability": "EntryAbility",
+        "executeMode": [
+          "foreground"
+        ]
+      }
+    },
+    {
+      "domain": "GoForwardDomain",
+      "intentName": "CheckDebt",
+      "intentVersion": "1.0.0",
+      "srcEntry": "./ets/insightintents/CheckDebtExecutor.ets",
+      "displayName": "$string:check_debt_name",
+      "displayDescription": "$string:check_debt_desc",
+      "uiAbility": {
+        "ability": "EntryAbility",
+        "executeMode": [
+          "foreground"
+        ]
+      }
+    },
+    {
+      "domain": "GoForwardDomain",
+      "intentName": "AddDebt",
+      "intentVersion": "1.0.0",
+      "srcEntry": "./ets/insightintents/AddDebtExecutor.ets",
+      "displayName": "$string:add_debt_name",
+      "displayDescription": "$string:add_debt_desc",
+      "uiAbility": {
+        "ability": "EntryAbility",
+        "executeMode": [
+          "foreground"
+        ]
+      }
+    },
+    {
+      "domain": "GoForwardDomain",
+      "intentName": "MarkPaid",
+      "intentVersion": "1.0.0",
+      "srcEntry": "./ets/insightintents/MarkPaidExecutor.ets",
+      "displayName": "$string:mark_paid_name",
+      "displayDescription": "$string:mark_paid_desc",
+      "uiAbility": {
+        "ability": "EntryAbility",
+        "executeMode": [
+          "foreground"
+        ]
+      }
+    },
+    {
+      "domain": "GoForwardDomain",
+      "intentName": "CheckSubscription",
+      "intentVersion": "1.0.0",
+      "srcEntry": "./ets/insightintents/CheckSubscriptionExecutor.ets",
+      "displayName": "$string:check_subscription_name",
+      "displayDescription": "$string:check_subscription_desc",
+      "uiAbility": {
+        "ability": "EntryAbility",
+        "executeMode": [
+          "foreground"
+        ]
+      }
+    },
+    {
+      "domain": "GoForwardDomain",
+      "intentName": "CountdownToPayoff",
+      "intentVersion": "1.0.0",
+      "srcEntry": "./ets/insightintents/CountdownToPayoffExecutor.ets",
+      "displayName": "$string:countdown_payoff_name",
+      "displayDescription": "$string:countdown_payoff_desc",
+      "uiAbility": {
+        "ability": "EntryAbility",
+        "executeMode": [
+          "foreground"
+        ]
+      }
+    },
+    {
+      "domain": "GoForwardDomain",
+      "intentName": "QueryPressure",
+      "intentVersion": "1.0.0",
+      "srcEntry": "./ets/insightintents/QueryPressureExecutor.ets",
+      "displayName": "$string:query_pressure_name",
+      "displayDescription": "$string:query_pressure_desc",
+      "uiAbility": {
+        "ability": "EntryAbility",
+        "executeMode": [
+          "foreground"
+        ]
+      }
+    },
+    {
+      "domain": "GoForwardDomain",
+      "intentName": "QuerySummary",
+      "intentVersion": "1.0.0",
+      "srcEntry": "./ets/insightintents/QuerySummaryExecutor.ets",
+      "displayName": "$string:query_summary_name",
+      "displayDescription": "$string:query_summary_desc",
+      "uiAbility": {
+        "ability": "EntryAbility",
+        "executeMode": [
+          "foreground"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,104 @@
+{
+  "forms": [
+    {
+      "name": "MonthDueWidget",
+      "displayName": "本月待还",
+      "description": "本月待还总额与待还清单",
+      "src": "./ets/widget/pages/MonthDueCard.ets",
+      "uiSyntax": "arkts",
+      "window": {
+        "designWidth": 360,
+        "autoDesignWidth": true
+      },
+      "colorMode": "auto",
+      "isDefault": true,
+      "updateEnabled": true,
+      "scheduledUpdateTime": "10:30",
+      "updateDuration": 0,
+      "defaultDimension": "2*2",
+      "supportDimensions": [
+        "2*2"
+      ]
+    },
+    {
+      "name": "PressureTrendWidget",
+      "displayName": "还款节奏",
+      "description": "近 6 个月还款节奏柱图",
+      "src": "./ets/widget/pages/PressureTrendCard.ets",
+      "uiSyntax": "arkts",
+      "window": {
+        "designWidth": 360,
+        "autoDesignWidth": true
+      },
+      "colorMode": "auto",
+      "isDefault": false,
+      "updateEnabled": true,
+      "scheduledUpdateTime": "10:30",
+      "updateDuration": 0,
+      "defaultDimension": "2*2",
+      "supportDimensions": [
+        "2*2"
+      ]
+    },
+    {
+      "name": "DebtOverviewWidget",
+      "displayName": "待还概览",
+      "description": "剩余待还、本月下月预计与结清进度",
+      "src": "./ets/widget/pages/DebtOverviewCard.ets",
+      "uiSyntax": "arkts",
+      "window": {
+        "designWidth": 360,
+        "autoDesignWidth": true
+      },
+      "colorMode": "auto",
+      "isDefault": false,
+      "updateEnabled": true,
+      "scheduledUpdateTime": "10:30",
+      "updateDuration": 0,
+      "defaultDimension": "2*2",
+      "supportDimensions": [
+        "2*2"
+      ]
+    },
+    {
+      "name": "SubscriptionWidget",
+      "displayName": "订阅",
+      "description": "生效订阅数与到期日期、状态清单",
+      "src": "./ets/widget/pages/SubscriptionCard.ets",
+      "uiSyntax": "arkts",
+      "window": {
+        "designWidth": 360,
+        "autoDesignWidth": true
+      },
+      "colorMode": "auto",
+      "isDefault": false,
+      "updateEnabled": true,
+      "scheduledUpdateTime": "10:30",
+      "updateDuration": 0,
+      "defaultDimension": "2*2",
+      "supportDimensions": [
+        "2*2"
+      ]
+    },
+    {
+      "name": "DebtPressureWidget",
+      "displayName": "待还·还款节奏",
+      "description": "剩余待还与结清进度，及近 6 个月还款节奏",
+      "src": "./ets/widget/pages/DebtPressureCard.ets",
+      "uiSyntax": "arkts",
+      "window": {
+        "designWidth": 360,
+        "autoDesignWidth": true
+      },
+      "colorMode": "auto",
+      "isDefault": false,
+      "updateEnabled": true,
+      "scheduledUpdateTime": "10:30",
+      "updateDuration": 0,
+      "defaultDimension": "2*4",
+      "supportDimensions": [
+        "2*4"
+      ]
+    }
+  ]
+}

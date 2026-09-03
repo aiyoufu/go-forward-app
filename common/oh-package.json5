@@ -1,0 +1,9 @@
+{
+  "name": "common",
+  "version": "1.0.0",
+  "description": "基础层 HAR：主题/工具/常量/路由 + 数据模型（audit #13 拆分）",
+  "main": "Index.ets",
+  "author": "",
+  "license": "MIT",
+  "dependencies": {}
+}

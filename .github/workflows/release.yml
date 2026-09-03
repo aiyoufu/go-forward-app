@@ -1,0 +1,57 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Collect local build outputs (if any)
+        run: |
+          mkdir -p dist
+          # 本地 DevEco / hvigor 产物位置（CI 默认没有，仅当有人把包放进 dist/ 或以下路径时才带上）
+          for f in $(find entry/build -type f \( -name "*.hap" -o -name "*.hsp" -o -name "*.app" \) 2>/dev/null || true); do
+            cp "$f" dist/ 2>/dev/null || true
+          done
+          if compgen -G "dist/*" > /dev/null; then
+            (cd dist && sha256sum * > SHA256SUMS.txt)
+          else
+            echo "no signed packages in CI; release will be created empty for manual upload" > dist/README.txt
+            cat dist/README.txt
+          fi
+          ls -la dist/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          fail_on_unmatched_files: false
+          files: |
+            dist/*
+          body: |
+            ## 向前 GoForward ${{ github.ref_name }}（HarmonyOS NEXT）
+
+            > HarmonyOS 安装包需经本机 DevEco 签名构建，CI 无法云端签名。
+            > 本 Release 由 tag 自动创建；`.hap` / `.app` 由维护者在本地出包后追加上传。
+
+            ### 安装
+            1. 到下方 **Assets** 下载 `*.hap` / `*.app`（附 `SHA256SUMS.txt` 校验）。
+            2. 用 DevEco / `hdc install` 安装到 HarmonyOS NEXT 真机。
+
+            ### 本地出包 + 上传（维护者）
+            ```powershell
+            # 1. DevEco 打开本仓库：Build > Build Hap(s)/App(s)，产物在 entry/build/default/outputs/
+            # 2. 打包并上传到本 tag 的 Release
+            pwsh -File scripts/upload-release-asset.ps1 -Tag ${{ github.ref_name }} -HapPath "entry/build/default/outputs/default/entry-default-signed.hap"
+            ```

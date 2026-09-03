@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_test_desc",
+      "value": "Entry module test"
+    },
+    {
+      "name": "TestAbility_desc",
+      "value": "Test ability for entry module"
+    },
+    {
+      "name": "TestAbility_label",
+      "value": "Entry Test"
+    }
+  ]
+}

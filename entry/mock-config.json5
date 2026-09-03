@@ -1,0 +1,48 @@
+{
+  "mock-config-version": 1,
+  "./src/main/ets/service/DbService": {
+    "source": "src/ohosTest/ets/mock/DbService.mock.ets"
+  },
+  "./src/main/ets/service/PreferencesService": {
+    "source": "src/ohosTest/ets/mock/PreferencesService.mock.ets"
+  },
+  "./src/main/ets/service/auth/E2EEService": {
+    "source": "src/ohosTest/ets/mock/E2EEService.mock.ets"
+  },
+  "./src/main/ets/service/UserService": {
+    "source": "src/ohosTest/ets/mock/UserService.mock.ets"
+  },
+  "./src/main/ets/service/DebtService": {
+    "source": "src/ohosTest/ets/mock/DebtService.mock.ets"
+  },
+  "./src/main/ets/service/SubscriptionService": {
+    "source": "src/ohosTest/ets/mock/SubscriptionService.mock.ets"
+  },
+  "./src/main/ets/service/CalculationService": {
+    "source": "src/ohosTest/ets/mock/CalculationService.mock.ets"
+  },
+  "./src/main/ets/service/platform/PlatformService": {
+    "source": "src/ohosTest/ets/mock/PlatformService.mock.ets"
+  },
+  "./src/main/ets/service/SettingsService": {
+    "source": "src/ohosTest/ets/mock/SettingsService.mock.ets"
+  },
+  "./src/main/ets/service/IntentService": {
+    "source": "src/ohosTest/ets/mock/IntentService.mock.ets"
+  },
+  "./src/main/ets/service/auth/AuthManager": {
+    "source": "src/ohosTest/ets/mock/AuthManager.mock.ets"
+  },
+  "./src/main/ets/service/LightSensorService": {
+    "source": "src/ohosTest/ets/mock/LightSensorService.mock.ets"
+  },
+  "./src/main/ets/service/WidgetDataBuilder": {
+    "source": "src/ohosTest/ets/mock/WidgetDataBuilder.mock.ets"
+  },
+  "./src/main/ets/service/WidgetUpdateService": {
+    "source": "src/ohosTest/ets/mock/WidgetUpdateService.mock.ets"
+  },
+  "./src/main/ets/service/LiveLockPayload": {
+    "source": "src/ohosTest/ets/mock/LiveLockPayload.mock.ets"
+  }
+}

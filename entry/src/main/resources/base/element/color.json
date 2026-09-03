@@ -1,0 +1,80 @@
+{
+  "color": [
+    {
+      "name": "start_window_background",
+      "value": "#000000"
+    },
+    {
+      "name": "widget_bg",
+      "value": "#F7F7F4"
+    },
+    {
+      "name": "widget_text",
+      "value": "#26251E"
+    },
+    {
+      "name": "widget_muted",
+      "value": "#5C5A52"
+    },
+    {
+      "name": "widget_dim",
+      "value": "#858379"
+    },
+    {
+      "name": "widget_bar",
+      "value": "#D6D0C4"
+    },
+    {
+      "name": "widget_fill",
+      "value": "#26251E"
+    },
+    {
+      "name": "widget_group",
+      "value": "#EBEAE5"
+    },
+    {
+      "name": "widget_btn_bg",
+      "value": "#26251E"
+    },
+    {
+      "name": "widget_btn_fg",
+      "value": "#F7F7F4"
+    },
+    {
+      "name": "widget_bar_peak",
+      "value": "#26251E"
+    },
+    {
+      "name": "widget_bar_current",
+      "value": "#5C5A52"
+    },
+    {
+      "name": "widget_amt_on_bar",
+      "value": "#F7F7F4"
+    },
+    {
+      "name": "widget_tag_ok_fg",
+      "value": "#16A34A"
+    },
+    {
+      "name": "widget_tag_ok_bg",
+      "value": "#1F22C55E"
+    },
+    {
+      "name": "widget_tag_warn_fg",
+      "value": "#D97706"
+    },
+    {
+      "name": "widget_tag_warn_bg",
+      "value": "#1FF59E0B"
+    },
+    {
+      "name": "widget_tag_off_fg",
+      "value": "#5C5A52"
+    },
+    {
+      "name": "widget_tag_off_bg",
+      "value": "#EBEAE5"
+    }
+  ]
+}

@@ -1,0 +1,152 @@
+{
+  "module": {
+    "name": "entry",
+    "type": "entry",
+    "description": "$string:module_desc",
+    "mainElement": "EntryAbility",
+    "deviceTypes": [
+      "phone",
+      "tablet",
+      "2in1"
+    ],
+    "deliveryWithInstall": true,
+    "installationFree": false,
+    "pages": "$profile:main_pages",
+    "metadata": [
+      {
+        "name": "ohos.extension.insight_intent",
+        "resource": "$profile:insight_intent"
+      },
+      {
+        "name": "networkSecurityConfig",
+        "resource": "$profile:network_config"
+      }
+    ],
+    "requestPermissions": [
+      {
+        "name": "ohos.permission.INTERNET",
+        "reason": "$string:internet_permission_reason",
+        "usedScene": {
+          "abilities": [ "EntryAbility" ],
+          "when": "inuse"
+        }
+      },
+      {
+        "name": "ohos.permission.GET_NETWORK_INFO",
+        "reason": "$string:network_info_permission_reason",
+        "usedScene": {
+          "abilities": [ "EntryAbility" ],
+          "when": "inuse"
+        }
+      },
+      {
+        "name": "ohos.permission.PUBLISH_AGENT_REMINDER",
+        "reason": "$string:reminder_permission_reason",
+        "usedScene": {
+          "abilities": [ "EntryAbility" ],
+          "when": "inuse"
+        }
+      },
+      {
+        "name": "ohos.permission.NFC_TAG",
+        "reason": "$string:nfc_permission_reason",
+        "usedScene": {
+          "abilities": [ "EntryAbility" ],
+          "when": "inuse"
+        }
+      },
+      {
+        "name": "ohos.permission.MICROPHONE",
+        "reason": "$string:microphone_permission_reason",
+        "usedScene": {
+          "abilities": [ "EntryAbility" ],
+          "when": "inuse"
+        }
+      },
+      {
+        "name": "ohos.permission.DETECT_GESTURE",
+        "reason": "$string:detect_gesture_permission_reason",
+        "usedScene": {
+          "abilities": [ "EntryAbility" ],
+          "when": "inuse"
+        }
+      },
+      {
+        "name": "ohos.permission.DLP_GET_HIDE_STATUS",
+        "reason": "$string:dlp_anti_peek_permission_reason",
+        "usedScene": {
+          "abilities": [ "EntryAbility" ],
+          "when": "inuse"
+        }
+      },
+      {
+        "name": "ohos.permission.PRIVACY_WINDOW"
+      }
+    ],
+    "abilities": [
+      {
+        "name": "EntryAbility",
+        "srcEntry": "./ets/entryability/EntryAbility.ets",
+        "description": "$string:EntryAbility_desc",
+        "icon": "$media:layered_image",
+        "label": "$string:EntryAbility_label",
+        "startWindowIcon": "$media:startIcon",
+        "startWindowBackground": "$color:start_window_background",
+        "exported": true,
+        "skills": [
+          {
+            "entities": [
+              "entity.system.home"
+            ],
+            "actions": [
+              "ohos.want.action.home",
+              "ohos.nfc.tag.action.TAG_FOUND",
+              "goforward.open.ai.live"
+            ],
+            "uris": [
+              { "type": "tag-tech/Ndef" }
+            ]
+          }
+        ]
+      }
+    ],
+    "extensionAbilities": [
+      {
+        "name": "EntryBackupAbility",
+        "srcEntry": "./ets/entrybackupability/EntryBackupAbility.ets",
+        "type": "backup",
+        "exported": false,
+        "metadata": [
+          {
+            "name": "ohos.extension.backup",
+            "resource": "$profile:backup_config"
+          }
+        ]
+      },
+      {
+        "name": "FormAbility",
+        "srcEntry": "./ets/widget/FormAbility.ets",
+        "type": "form",
+        "exported": false,
+        "metadata": [
+          {
+            "name": "ohos.extension.form",
+            "resource": "$profile:form_config"
+          }
+        ]
+      },
+      {
+        "name": "LiveViewLockScreenAbility",
+        "srcEntry": "./ets/liveview/LiveViewLockScreenAbility.ets",
+        "type": "liveViewLockScreen",
+        "exported": false
+      },
+      {
+        "name": "ReminderWorkAbility",
+        "srcEntry": "./ets/reminder/ReminderWorkAbility.ets",
+        "type": "workScheduler",
+        "exported": false
+      }
+    ]
+  }
+}

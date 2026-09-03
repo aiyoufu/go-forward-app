@@ -1,0 +1,11 @@
+{
+  "name": "service",
+  "version": "1.0.0",
+  "description": "服务层 HAR：数据库/同步/认证/AI/卡片与实况窗数据构建（audit #13 拆分）",
+  "main": "Index.ets",
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "common": "file:../common"
+  }
+}

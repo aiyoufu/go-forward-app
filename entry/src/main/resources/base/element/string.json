@@ -1,0 +1,108 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "向前：待还、订阅与账户汇总，支持可选 AI 录入与云端同步"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "向前主入口"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "向前"
+    },
+    {
+      "name": "internet_permission_reason",
+      "value": "用于云端同步、可选 AI 解析请求以及加载网络图标"
+    },
+    {
+      "name": "network_info_permission_reason",
+      "value": "用于判断网络是否可用，以便提示同步与 AI 请求状态"
+    },
+    {
+      "name": "reminder_permission_reason",
+      "value": "用于在还款日、订阅扣费日前发送本地提醒"
+    },
+    {
+      "name": "dlp_anti_peek_permission_reason",
+      "value": "用于感知他人窥视屏幕的状态，以便自动隐藏财务信息"
+    },
+    {
+      "name": "open_ai_live_name",
+      "value": "用向前录入"
+    },
+    {
+      "name": "open_ai_live_desc",
+      "value": "打开向前并进入AI录入。说法：用向前录入、打开向前录入、向前添加一笔、用向前录入单据、向前AI录入"
+    },
+    {
+      "name": "check_debt_name",
+      "value": "向前查询负债"
+    },
+    {
+      "name": "check_debt_desc",
+      "value": "用向前查询当前负债、今日应还、逾期；可说：我欠多少钱、今天还多少"
+    },
+    {
+      "name": "add_debt_name",
+      "value": "向前添加负债"
+    },
+    {
+      "name": "add_debt_desc",
+      "value": "通过小艺添加负债记录"
+    },
+    {
+      "name": "mark_paid_name",
+      "value": "向前标记已还"
+    },
+    {
+      "name": "mark_paid_desc",
+      "value": "用向前标记某笔负债已还"
+    },
+    {
+      "name": "nfc_permission_reason",
+      "value": "用于碰一碰分享负债或账户摘要（仅在您主动使用分享时）"
+    },
+    {
+      "name": "microphone_permission_reason",
+      "value": "用于系统语音转文字描述单据；转写文本再由您配置的文字解析服务识别，不上传原始录音作独立语音 AI 渠道"
+    },
+    {
+      "name": "detect_gesture_permission_reason",
+      "value": "用于智感握姿识别操作手，将 AI 录入条的听写/拍照按钮调整到更易触及的一侧"
+    },
+    {
+      "name": "check_subscription_name",
+      "value": "向前查询订阅"
+    },
+    {
+      "name": "check_subscription_desc",
+      "value": "用向前查询本月订阅服务支出情况"
+    },
+    {
+      "name": "countdown_payoff_name",
+      "value": "向前还清倒计时"
+    },
+    {
+      "name": "countdown_payoff_desc",
+      "value": "用向前查询距离全部还清还有多久"
+    },
+    {
+      "name": "query_pressure_name",
+      "value": "向前查看还款节奏"
+    },
+    {
+      "name": "query_pressure_desc",
+      "value": "用向前查看本月及近期还款节奏"
+    },
+    {
+      "name": "query_summary_name",
+      "value": "向前查看收支概览"
+    },
+    {
+      "name": "query_summary_desc",
+      "value": "用向前查看剩余待还、月支出及订阅汇总"
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "mock-config-version": 1,
+  "./src/main/ets/service/DbService": {
+    "source": "src/ohosTest/ets/mock/DbService.mock.ets"
+  },
+  "./src/main/ets/service/auth/E2EEService": {
+    "source": "src/ohosTest/ets/mock/E2EEService.mock.ets"
+  },
+  "./src/main/ets/service/UserService": {
+    "source": "src/ohosTest/ets/mock/UserService.mock.ets"
+  },
+  "./src/main/ets/service/auth/AuthManager": {
+    "source": "src/ohosTest/ets/mock/AuthManager.mock.ets"
+  },
+  "./src/main/ets/service/SupabaseRestService": {
+    "source": "src/ohosTest/ets/mock/SupabaseRestService.mock.ets"
+  },
+  "./src/main/ets/service/PreferencesService": {
+    "source": "src/ohosTest/ets/mock/PreferencesService.mock.ets"
+  },
+  "./src/main/ets/service/auth/SecureStore": {
+    "source": "src/ohosTest/ets/mock/SecureStore.mock.ets"
+  },
+  "./src/main/ets/service/auth/CryptoService": {
+    "source": "src/ohosTest/ets/mock/CryptoService.mock.ets"
+  },
+  "./src/main/ets/service/DebtService": {
+    "source": "src/ohosTest/ets/mock/DebtService.mock.ets"
+  },
+  "./src/main/ets/service/SubscriptionService": {
+    "source": "src/ohosTest/ets/mock/SubscriptionService.mock.ets"
+  },
+  "./src/main/ets/service/CreditAccountService": {
+    "source": "src/ohosTest/ets/mock/CreditAccountService.mock.ets"
+  },
+  "./src/main/ets/service/PaymentService": {
+    "source": "src/ohosTest/ets/mock/PaymentService.mock.ets"
+  },
+  "./src/main/ets/service/SettingsService": {
+    "source": "src/ohosTest/ets/mock/SettingsService.mock.ets"
+  },
+  "./src/main/ets/service/CalculationService": {
+    "source": "src/ohosTest/ets/mock/CalculationService.mock.ets"
+  },
+  "./src/main/ets/service/platform/PlatformService": {
+    "source": "src/ohosTest/ets/mock/PlatformService.mock.ets"
+  },
+  "./src/main/ets/service/ai/AIService": {
+    "source": "src/ohosTest/ets/mock/AIService.mock.ets"
+  }
+}

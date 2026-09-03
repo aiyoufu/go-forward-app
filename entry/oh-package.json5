@@ -1,0 +1,14 @@
+{
+  "name": "entry",
+  "version": "1.0.0",
+  "description": "GoForward entry HAP：页面、服务卡片、实况窗",
+  "main": "",
+  "author": "goforward",
+  "license": "MIT",
+  "dependencies": {
+    "common": "file:../common",
+    "service": "file:../service",
+    "components": "file:../components"
+  }
+}
+
