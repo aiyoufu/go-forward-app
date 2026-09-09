@@ -26,8 +26,8 @@ export type AiChannelDot = 0 | 1 | 2
 
 /**
  * AI 配置 · 大半模态内容
- * - 文字解析：必选底座（键盘 / 系统听写转写文本 / OCR 文本均依赖）
- * - 图片识别：可选视觉模型
+ * - 文字解析：键盘 / 系统听写转写文本（统一内容处理架构下与图片共用同一提示词）
+ * - 图片识别：图片直发多模态大模型
  * - 无独立「语音 LLM」渠道；鸿蒙听写见 SpeechService + docs/deprecated/ai-voice-deprecation.md
  * - 编辑为草稿：仅点「完成」写入；关闭/下滑丢弃
  */
@@ -659,7 +659,7 @@ export struct AIConfigSheet {
 
   /**
    * 关闭（X / 下滑）前保住已填内容。
-   * 原实现关闭即丢草稿，用户填完 Key 却因未点「完成」而白填一次。
+   * 原实现关闭即丢草稿，用户填完 Key 却因未点「保存」而白填一次。
    */
   private async closeWithSave(): Promise<void> {
     await this.persistDraftIfDirty()
@@ -668,9 +668,9 @@ export struct AIConfigSheet {
 
   private disabledHint(): string {
     if (this.active === 'text') {
-      return '开启后支持键盘描述、系统听写（Core Speech）与 OCR 文本解析；常见单据可本地规则秒识别。'
+      return '开启后支持键盘描述与系统听写（Core Speech）的智能解析，与图片共用同一套大模型处理逻辑。'
     }
-    return '开启后图片走系统 OCR（Core Vision）优先；读不出字时才用视觉模型兜底。'
+    return '开启后图片直发多模态大模型识别，准确性优先。'
   }
 
   @Builder
@@ -954,8 +954,8 @@ export struct AIConfigSheet {
         }
 
         Text(this.active === 'text' ?
-          '用于键盘、系统听写（Core Speech）与 OCR 文本的结构化解析。优先本地规则秒出结果，再调云端。听写不是独立语音 LLM。' :
-          '图片优先系统 OCR（Core Vision）+ 本地规则/文字模型；仅 OCR 读不出字时才用视觉模型兜底。Key 仅本地保存。')
+          '用于键盘与系统听写（Core Speech）的结构化解析，与图片共用同一套大模型处理逻辑。听写不是独立语音 LLM。' :
+          '图片直发多模态大模型统一解析，准确性优先。Key 仅本地保存。')
           .fontSize(TypeScale.caption)
           .fontColor(this.theme.text3)
           .lineHeight(16)
@@ -972,49 +972,70 @@ export struct AIConfigSheet {
 
       if (this.enabledOf(this.active)) {
         Row({ space: 10 }) {
-          Button(this.testing ? '测试中...' : '测试连接')
-            .layoutWeight(1)
-            .height(48)
-            .fontSize(TypeScale.control)
-            .fontWeight(FontWeight.Medium)
-            .backgroundColor(this.theme.sheetItemBackground())
-            .fontColor(this.theme.text)
-            .borderRadius(this.theme.sheetCardRadius)
-            .border({ width: 1, color: this.theme.borderStrong })
-            .enabled(!this.testing)
-            .onClick(() => {
+          Row() {
+            Text(this.testing ? '测试中...' : '测试连接')
+              .fontSize(TypeScale.control)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(this.theme.text)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+          }
+          .layoutWeight(1)
+          .height(48)
+          .justifyContent(FlexAlign.Center)
+          .backgroundColor(this.theme.sheetItemBackground())
+          .borderRadius(this.theme.radiusLg)
+          .border({ width: 1, color: this.theme.borderStrong })
+          .opacity(this.testing ? 0.5 : 1)
+          .onClick(() => {
+            if (!this.testing) {
               this.testConnection()
-            })
+            }
+          })
 
-          Button(this.finishing ? '保存中...' : '完成')
-            .layoutWeight(1)
-            .height(48)
-            .fontSize(TypeScale.control)
-            .fontWeight(FontWeight.Bold)
-            .backgroundColor(this.theme.ctaBackground())
-            .fontColor(this.theme.ctaForeground())
-            .borderRadius(this.theme.sheetCardRadius)
-            .enabled(!this.finishing)
-            .onClick(() => {
+          Row() {
+            Text(this.finishing ? '保存中...' : '保存')
+              .fontSize(TypeScale.control)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(this.theme.ctaForeground())
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+          }
+          .layoutWeight(1)
+          .height(48)
+          .justifyContent(FlexAlign.Center)
+          .backgroundColor(this.theme.ctaBackground())
+          .borderRadius(this.theme.radiusLg)
+          .opacity(this.finishing ? 0.5 : 1)
+          .onClick(() => {
+            if (!this.finishing) {
               this.finish()
-            })
+            }
+          })
         }
         .width('100%')
         .padding({ left: 24, right: 24, top: 14, bottom: sheetBottomInset(24) })
       } else {
         Column() {
-          Button(this.finishing ? '保存中...' : '完成')
-            .width('100%')
-            .height(48)
-            .fontSize(TypeScale.control)
-            .fontWeight(FontWeight.Bold)
-            .backgroundColor(this.theme.ctaBackground())
-            .fontColor(this.theme.ctaForeground())
-            .borderRadius(this.theme.sheetCardRadius)
-            .enabled(!this.finishing)
-            .onClick(() => {
+          Row() {
+            Text(this.finishing ? '保存中...' : '保存')
+              .fontSize(TypeScale.control)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(this.theme.ctaForeground())
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+          }
+          .width('100%')
+          .height(48)
+          .justifyContent(FlexAlign.Center)
+          .backgroundColor(this.theme.ctaBackground())
+          .borderRadius(this.theme.radiusLg)
+          .opacity(this.finishing ? 0.5 : 1)
+          .onClick(() => {
+            if (!this.finishing) {
               this.finish()
-            })
+            }
+          })
         }
         .width('100%')
         .padding({ left: 24, right: 24, top: 14, bottom: sheetBottomInset(24) })

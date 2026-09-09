@@ -456,6 +456,10 @@ export default function themeManagerTest() {
       expect(MotionTokens.ceremonyMaskIn).assertEqual(260)
     })
 
+    it('drawerSlideY值正确', 0, () => {
+      expect(MotionTokens.drawerSlideY).assertEqual(36)
+    })
+
     describe('drawerItemDelay', () => {
       it('正常索引', 0, () => {
         expect(MotionTokens.drawerItemDelay(0)).assertEqual(0)

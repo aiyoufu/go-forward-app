@@ -50,7 +50,7 @@ export function tryInstallmentPlanTable(text: string): ParseResult | null {
     return null
   }
 
-  // 分期金额 / 分期本金（优先「金额+标签」，避免标签后跨行吃到服务费 0.00）
+  // 优先抓取「金额+标签」形态的分期金额/本金
   let principal: number | null = extractPrincipalAmount(text)
 
   // 逐期：OCR 常把金额/已还/服务费拆到下一行，按行窗口扫描
@@ -84,7 +84,7 @@ export function tryInstallmentPlanTable(text: string): ParseResult | null {
   if (monthly === null && periodAmounts.length > 0 && periodAmounts[0] > 0) {
     monthly = periodAmounts[0]
   }
-  // 仍无月供：从全文取「像期供」的金额（排除本金、小额服务费）
+  // 仍无月供时从全文里抓取期供级金额
   if (monthly === null) {
     monthly = guessInstallmentMonthly(normSlash, principal)
   }
@@ -128,7 +128,7 @@ export function tryInstallmentPlanTable(text: string): ParseResult | null {
     }
   }
 
-  // 未还本金：优先用未还期金额之和，避免把已还期算进余额
+  // 未还本金 = 未还期金额之和
   let unpaidBalance: number | null = null
   if (periodAmounts.length > 0) {
     let sumUnpaid = 0
@@ -253,14 +253,12 @@ function buildScheduleNote(
     if (feeYuan > totalYuan) {
       feeYuan = 0
     }
-    // 本金 = 本期应付 − 服务费（图中第 3 期 114.21 − 3.33 = 110.88）
     let principalYuan = round2(totalYuan - feeYuan)
     if (principalYuan < 0) {
       principalYuan = 0
     }
     const totalFen = Math.round(totalYuan * 100)
     const interestFen = Math.round(feeYuan * 100)
-    // 用分差保证 本金+利息 = 总额，避免浮点误差（110.88+3.33=114.21）
     const principalFen = totalFen - interestFen
     const isPaid = i < paid.length ? paid[i] : false
     const dateStr = i < dates.length ? dates[i] : ''
@@ -326,7 +324,7 @@ function inferTotalPeriodsFromPlan(text: string): number {
   if (nValid >= 2 && nValid <= 120) {
     return nValid
   }
-  // 强分期语境下，还款日条数可当总期数（≥2 防误伤）
+  // 强分期语境：还款日条数作为总期数，但必须满足「每月固定日、月份连续」的计划表签名
   const strong =
     text.indexOf('分期') >= 0 ||
     text.indexOf('最后还款日') >= 0 ||
@@ -335,8 +333,18 @@ function inferTotalPeriodsFromPlan(text: string): number {
     text.indexOf('分期详情') >= 0
   if (strong) {
     const dates = scanAllPayDates(text)
-    if (dates.length >= 2 && dates.length <= 120) {
+    if (dates.length >= 2 && dates.length <= 120 && isMonthlyScheduleDates(dates)) {
       return dates.length
+    }
+  }
+  // 等额期供签名：同一金额重复 ≥3 次且与还款日条数一致（或日期完全缺失）
+  if (strong) {
+    const repeats = countEqualAmountRepeats(text)
+    if (repeats >= 3 && repeats <= 120) {
+      const dates = scanAllPayDates(text)
+      if (dates.length === 0 || dates.length === repeats) {
+        return repeats
+      }
     }
   }
   // 仅扫到 1 行序号但语境明确：仍接受 1（末期）
@@ -344,6 +352,140 @@ function inferTotalPeriodsFromPlan(text: string): number {
     return 1
   }
   return 0
+}
+
+/**
+ * 还款日序列是否构成「每月固定日扣款」的真实计划表签名：
+ * 各期同一天、月份连续递增。叙事时间戳（下单/确认收货）不满足，
+ * 不能作为期数证据。
+ */
+function isMonthlyScheduleDates(dates: string[]): boolean {
+  if (dates.length < 2) {
+    return false
+  }
+  const day0 = dates[0].substring(8, 10)
+  const monthKeys: number[] = []
+  for (let i = 0; i < dates.length; i++) {
+    if (dates[i].length < 10 || dates[i].substring(8, 10) !== day0) {
+      return false
+    }
+    const y = parseInt(dates[i].substring(0, 4), 10)
+    const m = parseInt(dates[i].substring(5, 7), 10)
+    if (isNaN(y) || isNaN(m)) {
+      return false
+    }
+    monthKeys.push(y * 12 + (m - 1))
+  }
+  for (let i = 1; i < monthKeys.length; i++) {
+    if (monthKeys[i] - monthKeys[i - 1] !== 1) {
+      return false
+    }
+  }
+  return true
+}
+
+/**
+ * 同一金额（xx.xx，≥5 元）在全文出现的最大次数。
+ * 等额期供会在计划表里逐期重复（19.66×3）；一次性叙事页对同一金额的提及
+ * 通常 ≤3 次（标题 X + 占用额度 X + 计入账单 X），需与日期条数互相印证。
+ */
+function countEqualAmountRepeats(text: string): number {
+  const re = /([0-9]+\.[0-9]{2})/g
+  const values: number[] = []
+  let m: RegExpExecArray | null = re.exec(text)
+  while (m !== null) {
+    const n = round2(parseFloat(m[1]))
+    if (n >= 5) {
+      values.push(n)
+    }
+    m = re.exec(text)
+  }
+  let best = 0
+  for (let i = 0; i < values.length; i++) {
+    let c = 0
+    for (let j = 0; j < values.length; j++) {
+      if (Math.abs(values[i] - values[j]) < 0.001) {
+        c++
+      }
+    }
+    if (c > best) {
+      best = c
+    }
+  }
+  return best
+}
+
+/**
+ * 文本是否带「分期计划」结构证据（用于否决一次性判定）：
+ * 「每月固定日、月份连续」的还款日序列（≥2 期），
+ * 或等额期供重复 ≥3 次且不同还款日 ≥3 个（19.66×3 配三个日期）。
+ */
+export function hasInstallmentStructure(text: string): boolean {
+  if (isMonthlyScheduleDates(scanAllPayDates(text))) {
+    return true
+  }
+  return countEqualAmountRepeats(text) >= 3 && scanAllPayDates(text).length >= 3
+}
+
+/** 等额金额分组：重复 ≥2 次的金额（≥5 元），形如 "19.66×3"，按首次出现顺序 */
+export function collectEqualAmountGroups(text: string): string[] {
+  const re = /([0-9]+\.[0-9]{2})/g
+  const values: number[] = []
+  let m: RegExpExecArray | null = re.exec(text)
+  while (m !== null) {
+    const n = round2(parseFloat(m[1]))
+    if (n >= 5) {
+      values.push(n)
+    }
+    m = re.exec(text)
+  }
+  const out: string[] = []
+  for (let i = 0; i < values.length; i++) {
+    let seen = false
+    let c = 0
+    for (let j = 0; j < values.length; j++) {
+      if (Math.abs(values[i] - values[j]) < 0.001) {
+        c++
+        if (j < i) {
+          seen = true
+        }
+      }
+    }
+    if (c >= 2 && !seen) {
+      out.push(round2(values[i]) + '×' + c)
+    }
+  }
+  return out
+}
+
+/** 期号标记枚举：n/m期、第N期、分N期（原样枚举，不做判断） */
+export function collectPeriodMarkers(text: string): string[] {
+  const out: string[] = []
+  const slash = /([0-9]{1,3})\s*\/\s*([0-9]{1,3})\s*期?/g
+  let m: RegExpExecArray | null = slash.exec(text)
+  while (m !== null) {
+    out.push(m[1] + '/' + m[2] + '期')
+    m = slash.exec(text)
+  }
+  const di = /第\s*([0-9]{1,3})\s*期/g
+  m = di.exec(text)
+  while (m !== null) {
+    out.push('第' + m[1] + '期')
+    m = di.exec(text)
+  }
+  const fen = /分\s*([0-9]{1,3})\s*期/g
+  m = fen.exec(text)
+  while (m !== null) {
+    out.push('分' + m[1] + '期')
+    m = fen.exec(text)
+  }
+  const uniq: string[] = []
+  for (let i = 0; i < out.length && uniq.length < 8; i++) {
+    if (uniq.indexOf(out[i]) < 0) {
+      uniq.push(out[i])
+    }
+  }
+  return uniq
 }
 
 /** 有效期数：有金额或还款日的槽位数（忽略中间空槽导致的虚高 length） */
@@ -460,7 +602,23 @@ function scanNumberedPlanRows(text: string, totalPeriods: number,
     const ci = circle.indexOf(c0)
     if (ci >= 0) {
       idx = ci + 1
+    } else if (/^\d{1,2}$/.test(line)) {
+      // 裸序号行：邻窗 3 行内有金额或日期才认作期号
+      let look = ''
+      for (let k = 1; k <= 3; k++) {
+        if (i + k < lines.length) {
+          look = look + ' ' + lines[i + k]
+        }
+      }
+      if (!/[0-9]+\.[0-9]{2}/.test(look) && !/[0-9]{4}[-/.年]/.test(look)) {
+        continue
+      }
+      idx = parseInt(line, 10)
     } else {
+      // 纯金额行不是序号行（其整数部分会被下方正则误当期号）
+      if (/^\d{1,2}[.．][0-9]/.test(line)) {
+        continue
+      }
       // 行首 1 / 1. / 1、 / 1) ，且后续像金额或日期（防误吃商品名里的数字）
       const hm = line.match(/^(\d{1,2})(?:[.、．)）]\s*|\s+)(.*)$/)
       if (hm === null || hm.length < 3) {
@@ -501,10 +659,14 @@ function scanNumberedPlanRows(text: string, totalPeriods: number,
     }
     const paid = window.indexOf('已还') >= 0 || window.indexOf('已结清') >= 0 ||
       window.indexOf('已还清') >= 0
-    // 优先「序号后首个金额」，避免窗口扫到上方本金 5299
+    // 优先「序号后首个金额」
     let amt = firstPeriodAmountAfterIndex(line, principal)
     if (amt === null) {
       amt = periodTotalInWindow(window, principal)
+    }
+    // 小额月供不达窗口金额门槛时按窗口宽松扫描
+    if (amt === null) {
+      amt = firstPeriodAmountAfterIndex(window, principal)
     }
     // 若命中本金级大额（≈总额），丢弃改用窗口内更小的期供
     if (amt !== null && principal !== null && Math.abs(amt - principal) < 0.02) {
@@ -512,7 +674,7 @@ function scanNumberedPlanRows(text: string, totalPeriods: number,
     }
     const fee = serviceFeeInWindow(window)
     const dateInWin = scanAllPayDates(window)
-    // 必须有金额或日期才算一期，避免把状态栏「1」当期号
+    // 必须有金额或日期才算一期
     if ((amt === null || amt <= 0) && dateInWin.length === 0) {
       continue
     }
@@ -654,7 +816,11 @@ export function scanAllPayDates(text: string): string[] {
     if (y >= 2020 && y <= 2100) {
       const mo = pad2(parseInt(dm[2], 10))
       const d = pad2(parseInt(dm[3], 10))
-      payDates.push(`${dm[1]}-${mo}-${d}`)
+      const iso = `${dm[1]}-${mo}-${d}`
+      // 同一日期只保留一个：分期计划每月仅一天，表头与正文重复读到的日期不另算一期
+      if (payDates.indexOf(iso) < 0) {
+        payDates.push(iso)
+      }
     }
     dm = dateRe.exec(text)
   }

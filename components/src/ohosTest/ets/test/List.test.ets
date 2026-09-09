@@ -44,6 +44,8 @@ import statusTagUiTest from './ui/StatusTag.ui.test'
 import subscriptionCardUiTest from './ui/SubscriptionCard.ui.test'
 
 import swipeEditDeleteActionsUiTest from './ui/SwipeEditDeleteActions.ui.test'
+import notificationsInboxTest from './NotificationsInbox.test'
+import notificationsInboxUiTest from './ui/NotificationsInbox.ui.test'
 
 
 export default function testsuite() {
@@ -93,5 +95,7 @@ export default function testsuite() {
   subscriptionCardUiTest()
 
   swipeEditDeleteActionsUiTest()
+  notificationsInboxTest()
+  notificationsInboxUiTest()
 
 }

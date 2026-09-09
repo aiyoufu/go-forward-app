@@ -764,7 +764,6 @@ export struct CreditAccountsTab {
     c.iconUrl = account.icon_url && account.icon_url.length > 0 ? account.icon_url :
       PlatformService.getLogoUrlForName(account.name)
     c.cardFace = account.icon_url !== undefined && account.icon_url.length > 0
-    c.iconFit = c.cardFace ? ImageFit.Contain : ImageFit.Cover
     c.heroLabel = '信用额度'
     c.heroValue = this.accountLimitText(account)
     c.heroUnit = hasLimit ? '万' : ''

@@ -78,10 +78,14 @@ export class AppStorageKeys {
   static readonly OPEN_ACCOUNT_DETAIL_ID: string = 'openAccountDetailId'
 
   // —— 通知 / 设置 Sheet ——
+  /** 通知未读数：写 NotificationService/NotificationsInbox；链 DashboardTab 铃铛红点 */
+  static readonly NOTIFICATION_UNREAD_COUNT: string = 'notificationUnreadCount'
   /** 写: MainPage 初始化建位；链 SettingsTab 打开 AI 配置 Sheet */
   static readonly SETTINGS_OPEN_AI_SHEET: string = 'settingsOpenAISheet'
   /** 写: SettingsTab；读: MainPage（Sheet 展开期间跳过主题刷新防动画重播） */
   static readonly SETTINGS_SHEET_BLOCKING_THEME: string = 'settingsSheetBlockingTheme'
+  /** AI 配置变更令牌：SettingsTab 自增；MainPage 据此触发 MiniBar 引导补播 */
+  static readonly AI_CONFIG_REVISION: string = 'aiConfigRevision'
 
   // —— AI Live 草稿 ——
   /** 经 AILiveDraftKeys 别名使用：写 AILiveOverlay 保存流；读 DebtFormPage/SubscriptionFormPage/CreditAccountFormPage 回填后删除 */

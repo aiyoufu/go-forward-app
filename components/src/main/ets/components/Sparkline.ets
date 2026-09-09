@@ -55,9 +55,31 @@ export function formatYuanGrouped(yuan: number): string {
   return result
 }
 
+/** 纯函数：分（fen）转元，2 位小数 + 千分位分组（tag 趋势金额用） */
+export function formatFenWithDecimal(fen: number): string {
+  const sign = fen < 0 ? '-' : ''
+  const abs = Math.abs(fen)
+  const yuanInt = Math.floor(abs / 100)
+  const cents = abs % 100
+  const intStr = '' + yuanInt
+  let grouped = ''
+  let count = 0
+  for (let i = intStr.length - 1; i >= 0; i--) {
+    grouped = intStr.charAt(i) + grouped
+    count++
+    if (count === 3 && i > 0) {
+      grouped = ',' + grouped
+      count = 0
+    }
+  }
+  // 补零到 2 位小数
+  const centsStr = cents < 10 ? '0' + cents : '' + cents
+  return sign + grouped + '.' + centsStr
+}
+
 /**
  * 总待还沿 sparkline 首尾的变化：文案与颜色同一套差值。
- * 下降绿 ↓ ¥n，上升红 ↑ ¥n；变化不足 2% 不展示。
+ * 下降绿 ↓ ¥n.nn，上升红 ↑ ¥n.nn；变化不足 2% 不展示。
  */
 export function remainingDebtTrendTag(values: number[]): SparklineTrendTag | null {
   if (values.length < 2) {
@@ -71,13 +93,13 @@ export function remainingDebtTrendTag(values: number[]): SparklineTrendTag | nul
     return null
   }
   const tag = new SparklineTrendTag()
-  const yuan = Math.round(Math.abs(delta) / 100)
   const dir = trendDir(values)
   tag.role = tagRoleForSparkline(dir)
+  const text = formatFenWithDecimal(Math.abs(delta))
   if (delta < 0) {
-    tag.text = '↓ ¥' + Utils.YUAN_GAP + formatYuanGrouped(yuan)
+    tag.text = '↓ ¥' + Utils.YUAN_GAP + text
   } else {
-    tag.text = '↑ ¥' + Utils.YUAN_GAP + formatYuanGrouped(yuan)
+    tag.text = '↑ ¥' + Utils.YUAN_GAP + text
   }
   return tag
 }

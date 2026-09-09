@@ -61,55 +61,11 @@ export struct LogoImage {
       this.displayUrl = ''
       return
     }
-    if (IconPickerService.isRawfilePath(src)) {
-      // Image 的字符串 src 不支持 $rawfile: scheme，先落地为 file:// 再显示
-      this.resolveRawfile(src, seq)
-      return
-    }
     if (!IconPickerService.isRemoteUrl(src)) {
       this.displayUrl = src
       return
     }
     this.resolveRemote(src, seq)
-  }
-
-  /**
-   * 内置平台图标（$rawfile:）落地为 file://<filesDir>/icon_net_<key>.png 后显示。
-   * 统一 icon_net_ 前缀：与点选落地、最近使用召回、云端上传同一条链路。
-   */
-  private async resolveRawfile(src: string, seq: number): Promise<void> {
-    try {
-      const host = this.getUIContext().getHostContext()
-      if (host === undefined || host === null) {
-        if (seq === this.resolveSeq) {
-          this.displayUrl = ''
-          if (this.onError) {
-            this.onError()
-          }
-        }
-        return
-      }
-      const local = await IconPickerService.resolveRawfileIcon(
-        host as common.UIAbilityContext, src, 'icon_net_')
-      if (seq !== this.resolveSeq) {
-        return
-      }
-      if (local.length > 0) {
-        this.displayUrl = local
-      } else {
-        this.displayUrl = ''
-        if (this.onError) {
-          this.onError()
-        }
-      }
-    } catch (_e) {
-      if (seq === this.resolveSeq) {
-        this.displayUrl = ''
-        if (this.onError) {
-          this.onError()
-        }
-      }
-    }
   }
 
   private async resolveRemote(src: string, seq: number): Promise<void> {
@@ -205,9 +161,6 @@ export struct LogoImage {
         Image(this.displayUrl)
           .width(this.boxWidth() - 2 * this.inset)
           .height(this.logoSize - 2 * this.inset)
-          .borderRadius(this.radius)
-          .backgroundColor(this.framed ? '#FFFFFF' : Color.Transparent)
-          .clip(this.radius > 0)
           .objectFit(this.fit)
           .onError(() => {
             if (this.onError) {
@@ -218,9 +171,5 @@ export struct LogoImage {
     }
     .width(this.boxWidth())
     .height(this.logoSize)
-    .borderRadius(this.radius)
-    .backgroundColor(this.framed && this.displayUrl.length > 0 ? '#FFFFFF' : Color.Transparent)
-    .border({ width: this.framed && this.displayUrl.length > 0 ? 0.5 : 0, color: this.theme.border })
-    .shadow(this.displayUrl.length > 0 ? this.theme.listLogoShadowOptions() : this.theme.noneShadowOptions())
   }
 }

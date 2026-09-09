@@ -32,6 +32,8 @@ const CRAFT_PATH = [
   'entry/src/main/ets/pages/ExportImportPage.ets',
   'entry/src/main/ets/pages/LegalPage.ets',
   'entry/src/main/ets/pages/AvatarCropPage.ets',
+  'entry/src/main/ets/pages/NotificationsPage.ets',
+  'components/src/main/ets/components/NotificationsInbox.ets',
   'entry/src/main/ets/widget/pages/SubscriptionCard.ets',
   'components/src/main/ets/components/DetailSheetView.ets',
   // 组件在 components HAR（非 entry 内路径）

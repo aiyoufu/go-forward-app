@@ -16,6 +16,7 @@ export class RouteNames {
   static readonly LEGAL = 'LegalPage'
   static readonly PROFILE = 'ProfilePage'
   static readonly AVATAR_CROP = 'AvatarCropPage'
+  static readonly NOTIFICATIONS = 'NotificationsPage'
 
   /** 表单/导出/资料等次级页：供 Index 判断时不拉入 SecondaryDestinations 依赖树 */
   static isSecondary(name: string): boolean {
@@ -25,7 +26,8 @@ export class RouteNames {
       name === RouteNames.EXPORT_IMPORT ||
       name === RouteNames.LEGAL ||
       name === RouteNames.PROFILE ||
-      name === RouteNames.AVATAR_CROP
+      name === RouteNames.AVATAR_CROP ||
+      name === RouteNames.NOTIFICATIONS
   }
 }
 

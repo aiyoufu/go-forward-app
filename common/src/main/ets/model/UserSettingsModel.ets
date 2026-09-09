@@ -27,6 +27,8 @@ export class UserSettings {
   recovery_backup_encrypted: string = ''
   light_sense_enabled: boolean = false
   eye_care_enabled: boolean = false
+  /** 智感握姿：是否让 AI 录入条等布局自动跟随握持手 */
+  hand_awareness_enabled: boolean = true
   theme_mode: ThemeMode = 'system'
   cloud_sync_enabled: boolean = true
   /** 月度还款安全阈值（单位：分），0 = 未设置，使用 AI 自动推导 */

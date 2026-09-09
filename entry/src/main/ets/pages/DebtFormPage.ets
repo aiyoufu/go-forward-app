@@ -123,14 +123,10 @@ export struct DebtFormPage {
     if (draft.repaymentDate.length > 0) {
       this.repaymentDate = draft.repaymentDate
     }
-    // 分期：debt_type / 总期数 / 月供任一命中即开分期（勿用 remaining>1，末期仍是分期）
-    const total = Number(draft.totalPeriods)
-    const remain = Number(draft.remainingPeriods)
-    const monthly = Number(draft.monthlyPayment)
     this.isInstallment = draft.debtType === 'installment' ||
-      (total > 1) ||
-      (remain > 1) ||
-      (monthly > 0 && total >= 1)
+      (Number(draft.totalPeriods) > 1) ||
+      (Number(draft.remainingPeriods) > 1) ||
+      (Number(draft.monthlyPayment) > 0 && Number(draft.totalPeriods) > 1)
     this.pendingCreditAccountHint = draft.creditAccountHint.length > 0 ?
       draft.creditAccountHint : draft.platform
     // 完整还款计划（含已还期）：note 内 custom_schedule
@@ -316,26 +312,24 @@ export struct DebtFormPage {
     // 编辑态：若已存币种位于折叠区（JPY/HKD），自动展开
     const currencyIdx = CurrencyService.getAllCurrencies().indexOf(this.currency as CurrencyCode)
     this.isCurrencyExpanded = currencyIdx >= 4
-    if (debt.repayment_method === 'custom') {
-      const schedule = CalculationService.parseCustomSchedule(debt.note)
-      if (schedule) {
-        // 自定义分期表按同一锁定汇率还原为原币口径（分）
-        this.customSchedule = backRate === 1 ? schedule : schedule.map(item => {
-          const ci = new CustomScheduleItem()
-          ci.period_number = item.period_number
-          ci.principal = item.principal / backRate
-          ci.interest = item.interest / backRate
-          ci.total = item.total / backRate
-          return ci
-        })
-        // 预填金额/利息输入缓冲，已还/未还同一套框
-        for (let i = 0; i < this.customSchedule.length; i++) {
-          const s = this.customSchedule[i]
-          const p = s.period_number
-          this.customInputBuffer['' + p + '_principal'] = (s.principal / 100).toFixed(2)
-          this.customInputBuffer['' + p + '_interest'] = (s.interest / 100).toFixed(2)
-          this.customInputBuffer['' + p + '_total'] = (s.total / 100).toFixed(2)
-        }
+    const savedSchedule = CalculationService.parseCustomSchedule(debt.note)
+    if (savedSchedule) {
+      // 自定义分期表按同一锁定汇率还原为原币口径（分）
+      this.customSchedule = backRate === 1 ? savedSchedule : savedSchedule.map(item => {
+        const ci = new CustomScheduleItem()
+        ci.period_number = item.period_number
+        ci.principal = item.principal / backRate
+        ci.interest = item.interest / backRate
+        ci.total = item.total / backRate
+        return ci
+      })
+      // 预填金额/利息输入缓冲，已还/未还同一套框
+      for (let i = 0; i < this.customSchedule.length; i++) {
+        const s = this.customSchedule[i]
+        const p = s.period_number
+        this.customInputBuffer['' + p + '_principal'] = (s.principal / 100).toFixed(2)
+        this.customInputBuffer['' + p + '_interest'] = (s.interest / 100).toFixed(2)
+        this.customInputBuffer['' + p + '_total'] = (s.total / 100).toFixed(2)
       }
     }
     this.iconUrl = debt.icon_url || ''
@@ -424,7 +418,7 @@ export struct DebtFormPage {
       return principalBaseYuan
     }
     const schedule = this.getPreviewSchedule()
-    if (this.repaymentMethod === 'custom' && schedule.length > 0) {
+    if (this.customSchedule.length > 0 && schedule.length > 0) {
       let sumFen = 0
       let hasUnpaid = false
       for (let i = 0; i < schedule.length; i++) {
@@ -607,7 +601,46 @@ export struct DebtFormPage {
     }
   }
 
+  /**
+   * 关联信用账户时按账户账单日/还款日推算首期应还日。
+   * periodShift：中途录入时向后的期数偏移（预览取 0，保存取推算值）。
+   * 无可推算条件（无账户、账单表已含显式还款日、开始日与还款日相同）时返回 ''。
+   */
+  private linkedAccountFirstDueDate(periodShift: number = 0): string {
+    if (this.creditAccountId.length === 0) {
+      return ''
+    }
+    for (let i = 0; i < this.customSchedule.length; i++) {
+      if (this.customSchedule[i].date.length >= 8) {
+        return ''
+      }
+    }
+    if (this.startDate.length === 0 || this.startDate === this.repaymentDate) {
+      return ''
+    }
+    const acc = this.creditAccounts.find(a => a.id === this.creditAccountId)
+    if (acc === undefined || acc.payment_day <= 0) {
+      return ''
+    }
+    return CalculationService.firstDueDateForAccount(this.startDate, acc.bill_day, acc.payment_day,
+      periodShift)
+  }
+
+  /** 中途录入时首期应还日向后偏移的期数（=总期 - 剩余 - 1） */
+  private currentPeriodShift(): number {
+    const total = Number(this.totalPeriods) || 0
+    const remain = Number(this.remainingPeriods) || 0
+    if (total <= 0 || remain <= 0) {
+      return 0
+    }
+    return Math.max(0, total - remain - 1)
+  }
+
   private resolveFirstPaymentDate(): string {
+    const fromAccount = this.linkedAccountFirstDueDate()
+    if (fromAccount.length > 0) {
+      return fromAccount
+    }
     return resolveFirstPayDate(this.startDate, this.repaymentDate, this.totalPeriods, this.remainingPeriods)
   }
 
@@ -621,7 +654,7 @@ export struct DebtFormPage {
     return this.currentBalance + '|' + this.monthlyPayment + '|' + this.totalInterest + '|' +
       this.totalPeriods + '|' + this.remainingPeriods + '|' + this.annualRate + '|' +
       this.repaymentDate + '|' + this.startDate + '|' + (this.isInstallment ? '1' : '0') + '|' +
-      this.repaymentMethod + '|' + custom
+      this.repaymentMethod + '|' + this.creditAccountId + '|' + custom
   }
 
   /** 生成预览还款计划（同输入复用缓存，避免 build 里多次摊还） */
@@ -649,9 +682,14 @@ export struct DebtFormPage {
 
   private handleCustomPeriodChange(periodNumber: number, field: 'total' | 'interest' | 'principal',
     valueYuanStr: string): void {
+    const bufferKey = '' + periodNumber + '_' + field
+    const prevYuanStr = this.customInputBuffer[bufferKey] ?? ''
+    if (prevYuanStr.length > 1 && valueYuanStr.length === 0) {
+      return
+    }
     const valueYuan = parseFloat(valueYuanStr) || 0
     const valueFen = Utils.yuanToFen(valueYuan)
-    this.customInputBuffer['' + periodNumber + '_' + field] = valueYuanStr
+    this.customInputBuffer[bufferKey] = valueYuanStr
 
     const preview = this.getPreviewSchedule()
     const currentItemInPreview = preview.find(x => x.period_number === periodNumber)
@@ -796,27 +834,26 @@ export struct DebtFormPage {
     if (this.isInstallment) {
       finalPaymentDay = this.resolvePaymentDay()
       if (this.repaymentMethod === 'custom') {
-        // 自定义表：月供 = 首个未还期应付总额（含服务费），禁止「本金÷剩余期」
-        // 例：本金 332.62、剩 2 期时 332.62/2=166.31 是错的，应为 110.87
         finalPayment = this.resolveCustomMonthlyYuan()
       } else {
         finalPayment = this.toBaseYuan(Number(this.monthlyPayment) || 0)
       }
       finalPeriods = Number(this.remainingPeriods)
-      finalNextPaymentDate = this.repaymentDate
+      const derivedInstallment = this.linkedAccountFirstDueDate(this.currentPeriodShift())
+      finalNextPaymentDate = derivedInstallment.length > 0 ? derivedInstallment : this.repaymentDate
     } else {
       if (this.creditAccountId.length === 0) {
         const parts = this.repaymentDate.split('-')
         finalPaymentDay = parts.length === 3 ? Number(parts[2]) : 10
         finalNextPaymentDate = this.repaymentDate
       } else {
-        // 关联账户：还款日跟账户，不再写死 10
         finalPaymentDay = this.resolvePaymentDay()
-        if (this.creditAccountId.length > 0) {
-          const acc = this.creditAccounts.find(a => a.id === this.creditAccountId)
-          if (acc !== undefined && acc.payment_day > 0) {
-            finalNextPaymentDate = Utils.nextDateForMonthlyDay(acc.payment_day)
-          }
+        const acc = this.creditAccounts.find(a => a.id === this.creditAccountId)
+        if (acc !== undefined && acc.payment_day > 0) {
+          const derivedOnce = this.linkedAccountFirstDueDate()
+          finalNextPaymentDate = derivedOnce.length > 0
+            ? derivedOnce
+            : Utils.nextDateForMonthlyDay(acc.payment_day)
         }
       }
     }
@@ -829,7 +866,7 @@ export struct DebtFormPage {
       })()
 
     let finalNote = this.note.trim()
-    if (this.isInstallment && this.repaymentMethod === 'custom') {
+    if (this.isInstallment && this.customSchedule.length > 0) {
       const customScheduleData = this.getPreviewSchedule().map(item => {
         const ci = new CustomScheduleItem()
         ci.period_number = item.period_number
@@ -1549,75 +1586,59 @@ export struct DebtFormPage {
             .alignItems(HorizontalAlign.Start)
 
             // 统一结构：每期都是「金额 + 利息」两框；已还仅禁编辑，布局一致
-            if (this.repaymentMethod === 'custom') {
-              Row({ space: 8 }) {
-                Column({ space: 2 }) {
-                  Text('金额')
-                    .fontSize(TypeScale.captionSm)
-                    .fontColor(this.theme.text3)
-                  TextInput({
-                    // 金额 = 本金（如第 3 期 110.88）；应付 = 本金 + 利息
-                    text: this.customInputBuffer['' + item.period_number + '_principal'] ??
-                      ((item.principal || 0) / 100).toFixed(2)
-                  })
-                    .type(InputType.NUMBER_DECIMAL)
-                    .width(72)
-                    .height(32)
-                    .fontSize(TypeScale.captionSm)
-                    .fontColor(item.status === 'paid' ? this.theme.text2 : this.theme.text)
-                    // 输入底保持 field；已还行本身抬升，框相对更「凹」
-                    .backgroundColor(this.theme.fieldBackground())
-                    .borderRadius(this.theme.radiusLg)
-                    .border({ width: this.theme.fieldBorderWidth(), color: this.theme.fieldBorder() })
-                    .enabled(item.status !== 'paid')
-                    .opacity(item.status === 'paid' ? 0.92 : 1)
-                    .onChange((v: string) => {
-                      if (item.status !== 'paid') {
-                        this.handleCustomPeriodChange(item.period_number, 'principal', v)
-                      }
-                    })
-                }
-                .alignItems(HorizontalAlign.Start)
-                Column({ space: 2 }) {
-                  Text('利息')
-                    .fontSize(TypeScale.captionSm)
-                    .fontColor(this.theme.text3)
-                  TextInput({
-                    text: this.customInputBuffer['' + item.period_number + '_interest'] ??
-                      ((item.interest || 0) / 100).toFixed(2)
-                  })
-                    .type(InputType.NUMBER_DECIMAL)
-                    .width(72)
-                    .height(32)
-                    .fontSize(TypeScale.captionSm)
-                    .fontColor(item.status === 'paid' ? this.theme.text2 : this.theme.text)
-                    .backgroundColor(this.theme.fieldBackground())
-                    .borderRadius(this.theme.radiusLg)
-                    .border({ width: this.theme.fieldBorderWidth(), color: this.theme.fieldBorder() })
-                    .enabled(item.status !== 'paid')
-                    .opacity(item.status === 'paid' ? 0.92 : 1)
-                    .onChange((v: string) => {
-                      if (item.status !== 'paid') {
-                        this.handleCustomPeriodChange(item.period_number, 'interest', v)
-                      }
-                    })
-                }
-                .alignItems(HorizontalAlign.Start)
-              }
-            } else {
-              Column() {
-                Text(Utils.formatMoney(item.total))
-                  .fontSize(TypeScale.body)
-                  .fontWeight(FontWeight.Medium)
+            Row({ space: 8 }) {
+              Column({ space: 2 }) {
+                Text('金额')
+                  .fontSize(TypeScale.captionSm)
+                  .fontColor(this.theme.text3)
+                TextInput({
+                  // 金额 = 本金（如第 3 期 110.88）；应付 = 本金 + 利息
+                  text: this.customInputBuffer['' + item.period_number + '_principal'] ??
+                    ((item.principal || 0) / 100).toFixed(2)
+                })
+                  .type(InputType.NUMBER_DECIMAL)
+                  .width(72)
+                  .height(32)
+                  .fontSize(TypeScale.captionSm)
                   .fontColor(item.status === 'paid' ? this.theme.text2 : this.theme.text)
-                if (item.interest > 0) {
-                  Text('含服务费 ' + Utils.formatMoney(item.interest, true))
-                    .fontSize(TypeScale.kicker)
-                    .fontColor(this.theme.amber)
-                    .margin({ top: 2 })
-                }
+                  // 输入底保持 field；已还行本身抬升，框相对更「凹」
+                  .backgroundColor(this.theme.fieldBackground())
+                  .borderRadius(this.theme.radiusLg)
+                  .border({ width: this.theme.fieldBorderWidth(), color: this.theme.fieldBorder() })
+                  .enabled(item.status !== 'paid')
+                  .opacity(item.status === 'paid' ? 0.92 : 1)
+                  .onChange((v: string) => {
+                    if (item.status !== 'paid') {
+                      this.handleCustomPeriodChange(item.period_number, 'principal', v)
+                    }
+                  })
               }
-              .alignItems(HorizontalAlign.End)
+              .alignItems(HorizontalAlign.Start)
+              Column({ space: 2 }) {
+                Text('利息')
+                  .fontSize(TypeScale.captionSm)
+                  .fontColor(this.theme.text3)
+                TextInput({
+                  text: this.customInputBuffer['' + item.period_number + '_interest'] ??
+                    ((item.interest || 0) / 100).toFixed(2)
+                })
+                  .type(InputType.NUMBER_DECIMAL)
+                  .width(72)
+                  .height(32)
+                  .fontSize(TypeScale.captionSm)
+                  .fontColor(item.status === 'paid' ? this.theme.text2 : this.theme.text)
+                  .backgroundColor(this.theme.fieldBackground())
+                  .borderRadius(this.theme.radiusLg)
+                  .border({ width: this.theme.fieldBorderWidth(), color: this.theme.fieldBorder() })
+                  .enabled(item.status !== 'paid')
+                  .opacity(item.status === 'paid' ? 0.92 : 1)
+                  .onChange((v: string) => {
+                    if (item.status !== 'paid') {
+                      this.handleCustomPeriodChange(item.period_number, 'interest', v)
+                    }
+                  })
+              }
+              .alignItems(HorizontalAlign.Start)
             }
           }
           .width('100%')
@@ -1629,7 +1650,7 @@ export struct DebtFormPage {
           .borderRadius(this.theme.radiusSm)
           .border({ width: this.theme.fieldBorderWidth(), color: this.theme.fieldBorder() })
           .margin({ bottom: 6 })
-        }, (item: DebtPreviewItem, index: number) => index + '_' + JSON.stringify(item))
+        }, (item: DebtPreviewItem, index: number) => index + '_' + item.status + '_' + item.date)
       }
     }
     .width('100%')

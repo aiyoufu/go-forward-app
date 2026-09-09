@@ -155,7 +155,7 @@ export default function cryptoServiceTest() {
     })
   })
 
-  // ── 字段级加密原语（真实 cryptoFramework，与 go-forward-desktop enc:v1 互通） ──
+  // ── 字段级加密原语（真实 cryptoFramework，enc:v1 格式） ──
 
   describe('CryptoService_isEncryptedValue', () => {
     it('enc:v1前缀_识别为密文', 0, async () => {

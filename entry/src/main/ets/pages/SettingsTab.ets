@@ -6,6 +6,7 @@ import { ReminderService } from 'service'
 import { AuthManager } from 'service'
 import { ProfileService } from 'service'
 import { AntiPeekService, AntiPeekSetupOutcome } from 'service'
+import { HandednessService } from 'service'
 import { image } from '@kit.ImageKit'
 import { UserSettings } from 'common'
 import { ExportImportPanel } from 'components'
@@ -97,6 +98,7 @@ export struct SettingsTab {
   @StorageLink('appLockEnabled') appLockEnabled: boolean = false
   /** 防窥保护开关：系统检测到他人窥视屏幕时自动打码金额/名称/日期等敏感文本 */
   @State antiPeekEnabled: boolean = false
+  @State handAwarenessEnabled: boolean = true
   /** AI Live「去配置」：切到设置 Tab 并打开 AI 配置 Sheet */
   @StorageLink('settingsOpenAISheet') @Watch('onOpenAISheetRequest') openAISheetFlag: boolean = false
   private isResettingToggle: boolean = false
@@ -311,6 +313,8 @@ export struct SettingsTab {
   private async reloadSettingsAndAISummary(): Promise<void> {
     this.settings = await SettingsService.getSettings(UserService.getCurrentUserId())
     this.refreshAISummary()
+    AppStorage.setOrCreate(AppStorageKeys.AI_CONFIG_REVISION,
+      (AppStorage.get<number>(AppStorageKeys.AI_CONFIG_REVISION) ?? 0) + 1)
   }
 
   private themeModeLabel(mode: string): string {
@@ -384,6 +388,7 @@ export struct SettingsTab {
     this.appLockEnabled = this.settings.app_lock_enabled
     AppStorage.setOrCreate(AppStorageKeys.APP_LOCK_ENABLED, this.appLockEnabled)
     this.antiPeekEnabled = AntiPeekService.isEnabled()
+    this.handAwarenessEnabled = this.settings.hand_awareness_enabled
     this.refreshAISummary()
     this.loadAvatar()
   }
@@ -420,6 +425,17 @@ export struct SettingsTab {
       new SheetDialogButton('知道了', this.theme.text, 'default')
     ])
     this.openConfirm(config, () => {})
+  }
+
+  /** 智感握姿开关：持久化 + 让运行中的服务立即生效/退订 */
+  private async onHandAwarenessToggle(on: boolean): Promise<void> {
+    try {
+      HandednessService.setEnabled(on)
+      await SettingsService.updateHandAwareness(on)
+    } catch (_e) {
+      AppToast.show(ErrorMessages.SAVE_FAILED, 2000)
+      HandednessService.setEnabled(!on)
+    }
   }
 
   private async loadSession(): Promise<void> {
@@ -1170,6 +1186,18 @@ export struct SettingsTab {
               toggled: this.antiPeekEnabled,
               onToggle: (v: boolean) => {
                 this.onAntiPeekToggle(v)
+              }
+            })
+            Divider().color(this.theme.border).strokeWidth(0.5).margin({ left: 52 })
+            SettingsItem({
+              icon: $r('app.media.ic_ai_spark'),
+              label: '智感握姿',
+              value: '',
+              theme: this.theme,
+              toggle: true,
+              toggled: this.handAwarenessEnabled,
+              onToggle: (v: boolean) => {
+                this.onHandAwarenessToggle(v)
               }
             })
           }

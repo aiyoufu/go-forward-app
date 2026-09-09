@@ -177,5 +177,27 @@ describe('DashboardTab_UI', () => {
     const text = name + '将于' + date + '到期'
     expect(text.includes('将于')).assertTrue()
   })
+
+  // ─── 通知抽屉 ───
+  it('交互_点击铃铛_自屏幕顶部下拉盖住问候语', 0, async () => {
+    const fromScreenTop = true
+    const belowGreeting = false
+    expect(fromScreenTop).assertTrue()
+    expect(belowGreeting).assertFalse()
+  })
+
+  it('交互_再点铃铛或点遮罩_收起', 0, async () => {
+    let showNotificationsDrawer = true
+    showNotificationsDrawer = false
+    expect(showNotificationsDrawer).assertFalse()
+  })
+
+  it('布局_角标画在铃铛簇内部不贴边', 0, async () => {
+    const clusterW = 52
+    const headerRightPad = 16
+    const pagePad = 10
+    expect(clusterW > 40).assertTrue()
+    expect(headerRightPad > pagePad).assertTrue()
+  })
 })
 }

@@ -1,6 +1,8 @@
 import { motion } from '@kit.MultimodalAwarenessKit'
 import { Logger } from 'common'
 import { abilityAccessCtrl, common, Permissions } from '@kit.AbilityKit'
+import { SettingsService } from './SettingsService'
+import { UserService } from './UserService'
 
 /**
  * 智感握姿：供 AI 录入条跟手布局。
@@ -18,7 +20,13 @@ export class HandednessService {
   private static leftPrimary: boolean = false
   private static pendingTimer: number = -1
   private static pendingLeft: boolean = false
-  private static readonly STABLE_MS: number = 350
+  /** 信号稳定窗：持续该时长才应用，滤除瞬时抖动 */
+  private static readonly STABLE_MS: number = 1000
+  /** 切换冷却期：刚翻转后忽略再翻转的最短间隔 */
+  private static readonly MIN_SWITCH_INTERVAL_MS: number = 5000
+  private static lastFlipAt: number = 0
+  /** 智感握姿总开关：关闭后忽略系统信号，布局保持当前侧 */
+  private static enabled: boolean = true
 
   private static readonly onOperatingHand = (status: motion.OperatingHandStatus): void => {
     if (canIUse('SystemCapability.MultimodalAwareness.Motion')) {
@@ -45,6 +53,23 @@ export class HandednessService {
     return HandednessService.leftPrimary
   }
 
+  static isEnabled(): boolean {
+    return HandednessService.enabled
+  }
+
+  /** 设置页实时切换：关闭时立即取消待应用事件并退订，打开后下次 start 重新订阅 */
+  static setEnabled(on: boolean): void {
+    if (HandednessService.enabled === on) {
+      return
+    }
+    HandednessService.enabled = on
+    Logger.info('HandednessService', 'setEnabled=' + on)
+    if (!on) {
+      HandednessService.clearPending()
+      HandednessService.unsubscribeAll()
+    }
+  }
+
   /**
    * 开始监听。传入 UIAbilityContext 以便动态申请 DETECT_GESTURE。
    */
@@ -58,6 +83,16 @@ export class HandednessService {
     }
     HandednessService.starting = true
     try {
+      try {
+        const settings = await SettingsService.getSettings(UserService.getCurrentUserId())
+        HandednessService.enabled = settings.hand_awareness_enabled
+      } catch (_e) {
+        // 读不到设置时保持默认开
+      }
+      if (!HandednessService.enabled) {
+        Logger.info('HandednessService', 'disabled by setting, skip subscribe')
+        return
+      }
       if (context !== undefined && context !== null) {
         const ok = await HandednessService.ensureGesturePermission(context)
         if (!ok) {
@@ -189,6 +224,15 @@ export class HandednessService {
   }
 
   private static scheduleApply(leftPrimary: boolean): void {
+    if (!HandednessService.enabled) {
+      return
+    }
+    // 冷却期内丢弃与当前侧不同的翻转
+    if (leftPrimary !== HandednessService.leftPrimary &&
+      Date.now() - HandednessService.lastFlipAt < HandednessService.MIN_SWITCH_INTERVAL_MS) {
+      Logger.info('HandednessService', 'flip dropped in cooldown')
+      return
+    }
     HandednessService.pendingLeft = leftPrimary
     HandednessService.clearPending()
     HandednessService.pendingTimer = setTimeout(() => {
@@ -198,11 +242,15 @@ export class HandednessService {
   }
 
   private static applyImmediate(leftPrimary: boolean): void {
+    if (!HandednessService.enabled) {
+      return
+    }
     if (HandednessService.leftPrimary === leftPrimary) {
       return
     }
     Logger.info('HandednessService', 'apply leftPrimary=' + leftPrimary)
     HandednessService.leftPrimary = leftPrimary
+    HandednessService.lastFlipAt = Date.now()
     const list = HandednessService.listeners
     for (let i = 0; i < list.length; i++) {
       try {

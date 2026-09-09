@@ -7,8 +7,7 @@ import { SupabaseRestService, SupabaseRestOptions } from '../SupabaseRestService
 
 /**
  * DEK 生命周期编排：登录解锁 / 注册开通 / 改密重包裹 / 重置自愈。
- * 复刻 go-forward-desktop lib/crypto-keys.ts，云端仅存包裹后的 DEK
- * （user_settings.enc_dek_wrapped / enc_dek_salt）。
+ * 云端仅存包裹后的 DEK（user_settings.enc_dek_wrapped / enc_dek_salt）。
  *
  * 云端读写方法显式接收 userId + token（不 import AuthManager），
  * 避免与 AuthManager 的循环依赖；字段门面仅依赖活跃 DEK，与云端无关。
@@ -49,7 +48,7 @@ export class DekManager {
   private static readonly TAG: string = 'DekManager'
   /** DEK 本机缓存别名（关键资产），存 base64(dek 32B) */
   private static readonly DEK_ALIAS: string = 'enc_dek_cache'
-  /** PBKDF2 盐字节数，与 go-forward-desktop generateSaltB64 一致 */
+  /** PBKDF2 盐字节数 */
   private static readonly SALT_LEN: number = 16
 
   /** 活跃 DEK 内存缓存；进程内命中免读关键资产 */

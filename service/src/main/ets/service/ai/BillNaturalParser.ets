@@ -4,6 +4,42 @@
  */
 import { ParseResult, ParseResultItem } from './AIService'
 import { fillConfidence, guessPlatform, matchMoney, round2 } from './BillParseShared'
+import { hasInstallmentStructure } from './BillPlanParser'
+
+/**
+ * 还款日提示解析：还款日10月6号 / 还款日 2026年10月6号 / 10月6号还款。
+ * 缺年份按今年推断；该日期早于今天超过半年则进位到明年（跨年截图）。
+ * 返回 YYYY-MM-DD；解析不出返回 null。
+ */
+export function parseDueDateHint(text: string): string | null {
+  const withPrefix = text.match(/还款日\s*[:：]?\s*(?:(\d{4})\s*年)?\s*(\d{1,2})\s*月\s*(\d{1,2})\s*[号日]/)
+  if (withPrefix !== null && withPrefix.length >= 4) {
+    const year = withPrefix[1] !== undefined ? parseInt(withPrefix[1], 10) : 0
+    return buildDueDate(year, parseInt(withPrefix[2], 10), parseInt(withPrefix[3], 10))
+  }
+  const withSuffix = text.match(/(\d{1,2})\s*月\s*(\d{1,2})\s*[号日]\s*还款/)
+  if (withSuffix !== null && withSuffix.length >= 3) {
+    return buildDueDate(0, parseInt(withSuffix[1], 10), parseInt(withSuffix[2], 10))
+  }
+  return null
+}
+
+function buildDueDate(year: number, month: number, day: number): string | null {
+  if (!(month >= 1 && month <= 12) || !(day >= 1 && day <= 31)) {
+    return null
+  }
+  let y = year > 0 ? year : new Date().getFullYear()
+  let due = new Date(y, month - 1, day)
+  if (year <= 0) {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    if (today.getTime() - due.getTime() > 184 * 24 * 60 * 60 * 1000) {
+      y++
+      due = new Date(y, month - 1, day)
+    }
+  }
+  return `${y}-` + (month < 10 ? '0' + month : '' + month) + '-' + (day < 10 ? '0' + day : '' + day)
+}
 
 /**
  * 口语描述解析；无法可靠识别时返回 null（交给 LLM）
@@ -76,6 +112,11 @@ export function tryNaturalLanguageDebt(text: string): ParseResult | null {
       paymentDay = parseInt(dayM2[1], 10)
     }
   }
+  // 「还款日10月6号」等明示还款日；无「每月N号」时日号兼作每月还款日
+  const dueDate = parseDueDateHint(text)
+  if (paymentDay === null && dueDate !== null) {
+    paymentDay = parseInt(dueDate.substring(8, 10), 10)
+  }
 
   if (once) {
     if (principal === null && monthly === null) {
@@ -95,6 +136,9 @@ export function tryNaturalLanguageDebt(text: string): ParseResult | null {
     if (paymentDay !== null) {
       item.parsedFields.set('payment_day', paymentDay)
     }
+    if (dueDate !== null) {
+      item.parsedFields.set('next_payment_date', dueDate)
+    }
     item.parsedFields.set('note', '')
     fillConfidence(item, true)
     const result = new ParseResult()
@@ -112,6 +156,38 @@ export function tryNaturalLanguageDebt(text: string): ParseResult | null {
         totalPeriods = null
       }
     }
+  }
+
+  // 文本带分期结构证据但上面没解析出期数：交给 LLM 判别，避免误降级为一次性
+  if (totalPeriods === null && hasInstallmentStructure(text)) {
+    return null
+  }
+
+  // 明示还款日但推不出分期结构 → 一次性债务（单笔到期）
+  if (totalPeriods === null && principal !== null && dueDate !== null) {
+    const item = new ParseResultItem()
+    item.tempId = '1'
+    item.recordType = 'debt'
+    item.isComplete = true
+    item.parsedFields.set('platform', platform)
+    item.parsedFields.set('debt_type', 'credit_card')
+    item.parsedFields.set('current_balance', principal)
+    item.parsedFields.set('monthly_payment', principal)
+    item.parsedFields.set('total_periods', 1)
+    item.parsedFields.set('remaining_periods', 1)
+    if (paymentDay !== null) {
+      item.parsedFields.set('payment_day', paymentDay)
+    }
+    if (dueDate !== null) {
+      item.parsedFields.set('next_payment_date', dueDate)
+    }
+    item.parsedFields.set('note', '')
+    fillConfidence(item, true)
+    const result = new ParseResult()
+    result.items.push(item)
+    result.isComplete = true
+    result.rawContent = 'LOCAL_RULE_ONCE'
+    return result
   }
 
   if (totalPeriods === null && monthly === null && principal === null) {

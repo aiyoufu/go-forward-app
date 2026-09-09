@@ -36,10 +36,12 @@ export class MotionTokens {
   static readonly listItemRevealOffsetY: number = 12
 
   /**
-   * 通知抽屉入场（手势/面板出现）
+   * 通知抽屉入场（自顶向下）
    */
   static readonly drawerEnterDuration: number = 280
   static readonly drawerEnterOffsetY: number = 16
+  /** 顶栏抽屉整板滑入位移 vp（向上藏起） */
+  static readonly drawerSlideY: number = 36
   static readonly drawerItemStagger: number = 26
 
   /**

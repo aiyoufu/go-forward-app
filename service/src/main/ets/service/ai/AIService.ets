@@ -3,6 +3,7 @@ import { BusinessError } from '@kit.BasicServicesKit'
 import { AIChannelConfig } from 'common'
 import { SettingsService } from '../SettingsService'
 import { UserService } from '../UserService'
+import { buildUnifiedSystemPrompt, normalizeFlexibleDate } from './ParsePrompts'
 
 export class ParseResultItem {
   tempId: string = ''
@@ -27,8 +28,7 @@ export class AIConnectionTestResult {
 
 export class AIService {
   /**
-   * 从本机设置加载「文字解析」渠道（键盘录入 / OCR 文本共用）
-   * S1：统一配置读取，避免 Live / Chat 各写一份
+   * 从本机设置加载「文字解析」渠道（统一内容处理架构下与图片共用同一提示词）
    */
   static async loadTextChannelConfig(userId?: string): Promise<AIChannelConfig> {
     const uid = userId !== undefined && userId.length > 0 ? userId : UserService.getCurrentUserId()
@@ -140,19 +140,10 @@ export class AIService {
     return true
   }
 
-  static async parseDebtText(text: string, config: AIChannelConfig): Promise<ParseResult> {
-    return AIService.parseDebtTextInternal(text, config, false)
-  }
-
   /**
-   * OCR 后的快速文字解析：短 prompt + 短超时，避免「已 OCR 仍卡死在云端」。
+   * 统一解析入口（文字）：与图片共用同一条提示词与同一套处理逻辑。
    */
-  static async parseDebtTextFast(text: string, config: AIChannelConfig): Promise<ParseResult> {
-    return AIService.parseDebtTextInternal(text, config, true)
-  }
-
-  private static async parseDebtTextInternal(text: string, config: AIChannelConfig,
-    fast: boolean): Promise<ParseResult> {
+  static async parseDebtText(text: string, config: AIChannelConfig): Promise<ParseResult> {
     const key = AIService.normalizeApiKey(config.key)
     if (key.length === 0) {
       return AIService.failureResult('TEXT_DISABLED')
@@ -161,11 +152,11 @@ export class AIService {
       return AIService.failureResult('FORMAT_UNSUPPORTED_ANTHROPIC')
     }
     const url = AIService.resolveChatCompletionsUrl(config.baseUrl)
-    return AIService.callOpenAICompatible(url, key, config.model, text, fast)
+    return AIService.callUnified(url, key, config.model, text, '')
   }
 
   /**
-   * 视觉模型识别单据图（OpenAI 兼容 image_url / base64）
+   * 统一解析入口（图片）：图片直发多模态模型，与文字共用同一提示词。
    * @param jpegBase64 不含 data: 前缀的 JPEG base64
    */
   static async parseDebtFromImage(jpegBase64: string, config: AIChannelConfig): Promise<ParseResult> {
@@ -180,232 +171,47 @@ export class AIService {
       return AIService.failureResult('FORMAT_UNSUPPORTED_ANTHROPIC')
     }
     const url = AIService.resolveChatCompletionsUrl(config.baseUrl)
-    return AIService.callOpenAIVision(url, key, config.model, jpegBase64)
-  }
-
-  private static async callOpenAIVision(url: string, key: string, model: string,
-    jpegBase64: string): Promise<ParseResult> {
-    const date = new Date()
-    const year = date.getFullYear()
-    const month = ('0' + (date.getMonth() + 1)).slice(-2)
-    const day = ('0' + date.getDate()).slice(-2)
-    const currentDate = `${year}-${month}-${day}`
-    const modelName = model.length > 0 ? model : 'deepseek-v4-flash'
-    // 视觉兜底用短 prompt：完整 getSystemPrompt 可达数千 token，叠加大图必慢必超时
-    const systemPrompt = AIService.getVisionSystemPrompt(currentDate)
-    const dataUrl = 'data:image/jpeg;base64,' + jpegBase64
-    const userText =
-      '读图提取负债/订阅/信用账户，金额单位元。只返回 JSON，不要解释。'
-    // detail:low 降低视觉 token；max_tokens 收紧加快结束
-    const bodyStr = '{' +
-      '"model":' + JSON.stringify(modelName) + ',' +
-      '"messages":[' +
-      '{"role":"system","content":' + JSON.stringify(systemPrompt) + '},' +
-      '{"role":"user","content":[' +
-      '{"type":"text","text":' + JSON.stringify(userText) + '},' +
-      '{"type":"image_url","image_url":{"url":' + JSON.stringify(dataUrl) +
-      ',"detail":"low"}}' +
-      ']}' +
-      '],' +
-      '"max_tokens":1024,' +
-      '"response_format":{"type":"json_object"}' +
-      '}'
-    try {
-      const response = await AIService.requestOnce(url, {
-        method: http.RequestMethod.POST,
-        header: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': 'Bearer ' + key,
-          'User-Agent': 'GoForward/1.0'
-        },
-        extraData: bodyStr,
-        expectDataType: http.HttpDataType.STRING,
-        usingCache: false,
-        usingProtocol: http.HttpProtocol.HTTP1_1,
-        connectTimeout: 15000,
-        // 视觉兜底：45s 内必须返回；超时即失败，避免「卡死式等待」
-        readTimeout: 45000
-      })
-      if (response.responseCode < 200 || response.responseCode >= 300) {
-        const raw = response.result !== undefined && response.result !== null
-          ? response.result.toString()
-          : ''
-        return AIService.failureResult('VISION_HTTP_' + response.responseCode +
-          AIService.safeErrSnippet(raw))
-      }
-      const rawResult = response.result !== undefined && response.result !== null
-        ? response.result.toString()
-        : ''
-      if (rawResult.length === 0) {
-        return AIService.failureResult('VISION_EMPTY_BODY')
-      }
-      const content = AIService.extractAssistantContent(rawResult)
-      if (content.length === 0) {
-        return AIService.failureResult('VISION_EMPTY_CONTENT')
-      }
-      return AIService.parseJson(content)
-    } catch (err) {
-      const msg = AIService.describeCaughtError(err as Object)
-      const lower = msg.toLowerCase()
-      if (lower.indexOf('timeout') >= 0 || lower.indexOf('timed out') >= 0 ||
-        lower.indexOf('time out') >= 0 || msg.indexOf('超时') >= 0) {
-        return AIService.failureResult('VISION_TIMEOUT' + AIService.safeErrSnippet(msg))
-      }
-      return AIService.failureResult('VISION_EXCEPTION' + AIService.safeErrSnippet(msg))
-    }
+    return AIService.callUnified(url, key, config.model, '', jpegBase64)
   }
 
   /**
-   * 视觉兜底专用短 system prompt（完整版仅用于纯文字解析）。
-   * 目标：输入 token 小、输出结构够用，优先速度。
+   * 统一调用：文字与图片走同一请求构造、同一提示词、同一解析与校验。
+   * jpegBase64 非空时为图片输入（多模态），否则为文字输入。
    */
-  private static getVisionSystemPrompt(currentDate: string): string {
-    return `财务票据抽取助手。今天=${currentDate}。只输出 JSON：
-{"items":[{"temp_id":"1","record_type":"debt|subscription|credit_account","parsed_fields":{},"confidence":{},"is_complete":true}],"clarify_question":null,"is_complete":true}
-debt.parsed_fields: platform,debt_type(installment|credit_card|loan|other),current_balance,monthly_payment,total_periods,remaining_periods,payment_day,next_payment_date,note
-subscription: name,amount,billing_cycle,next_billing_date
-credit_account: name,last_four,bill_day,payment_day,credit_limit
-金额为元(number)。能算则算 remaining_periods/current_balance；缺关键信息 is_complete=false 并写 clarify_question。不要 markdown。`
-  }
-
-  private static getSystemPrompt(currentDate: string): string {
-    return `你是一个智能财务信息提取助手。当前系统时间是：${currentDate}。
-请从用户的描述中识别所有提到的负债单据、订阅服务或信用账户信息，并以严格的 JSON 格式返回，不包含任何其他文字：
-
-{
-  "items": [
-    {
-      "temp_id": "临时唯一标识符，如 '1', '2'，以便在多轮对话中追踪",
-      "record_type": "debt" | "subscription" | "credit_account",
-      "parsed_fields": { ... },
-      "confidence": { ... },
-      "is_complete": boolean
-    }
-  ],
-  "clarify_question": "口语化中文问题，或 null",
-  "is_complete": "是否所有条目均已收集/推理完整"
-}
-
-【record_type 分类规则】
-- "subscription"：提到"订阅"、"会员"、"月费"、"年费"、"自动续费"、"VIP"、"包月"、"包年"等关键词
-- "credit_account"：提到"卡号"、"尾号"、"额度"、"账单日"、"信用卡账户"等且不涉及具体欠款金额（仅描述卡片信息本身）
-- "debt"：提到"分期"、"欠款"、"还款"、"账单"、"贷款"、"白条"、"花呗"等涉及具体负债
-
-【各 record_type 的 parsed_fields 与 confidence 字段定义】
-
-当 record_type = "debt" 时：
-parsed_fields: {
-  "platform": "平台名称，例如 '京东白条', '招商信用卡', '中信信用卡' 等",
-  "debt_type": "installment" | "credit_card" | "loan" | "other" | null,
-  "current_balance": number | null,
-  "monthly_payment": number | null,
-  "total_periods": number | null,
-  "remaining_periods": number | null,
-  "annual_rate": number | null,
-  "payment_day": number | null,
-  "last_four": "卡号尾号（4位数字）" | null,
-  "start_date": "YYYY-MM-DD" | null,
-  "next_payment_date": "YYYY-MM-DD" | null,
-  "note": "备注" | null
-}
-confidence 字段与 parsed_fields 键名一一对应，值为 "high"|"medium"|"low"|"missing"。
-
-当 record_type = "subscription" 时：
-parsed_fields: {
-  "name": "订阅服务名称，例如 '网易云音乐', '爱奇艺', 'ChatGPT Plus' 等",
-  "category": "video" | "music" | "tools" | "learning" | "lifestyle" | "storage" | "fitness" | "programming" | "ai" | "other",
-  "amount": number（每期金额，单位元）| null,
-  "billing_cycle": "once" | "weekly" | "biweekly" | "monthly" | "quarterly" | "semiannually" | "annually",
-  "next_billing_date": "YYYY-MM-DD" | null,
-  "start_date": "YYYY-MM-DD" | null,
-  "end_date": "YYYY-MM-DD" | null,
-  "note": "备注" | null
-}
-confidence 字段与 parsed_fields 键名一一对应，值为 "high"|"medium"|"low"|"missing"。
-
-当 record_type = "credit_account" 时：
-parsed_fields: {
-  "name": "信用卡名称，例如 '招商银行信用卡', '中信银行信用卡' 等",
-  "last_four": "卡号尾号（4位数字）" | null,
-  "bill_day": number（出单日，1-31）| null,
-  "payment_day": number（还款日，1-31）| null,
-  "credit_limit": number（额度，单位元）| null,
-  "expiry_date": "YYYY-MM" | null,
-  "annual_fee_required_swipes": number（免年费刷卡次数）| null,
-  "grace_period_days": number（宽限天数，还款日后逾期宽限 1-3 天）| null,
-  "interest_free_days": number（免息期天数，交易日至还款日 20-56 天）| null,
-  "note": "备注" | null
-}
-confidence 字段与 parsed_fields 键名一一对应，值为 "high"|"medium"|"low"|"missing"。
-
-【推理与计算规则（仅适用于 debt 类型）】
-1. 每一笔负债中：principal（分期本金/原始总额）、current_balance（剩余待还）、monthly_payment（月供）、remaining_periods（剩余期数）是核心字段。
-   - principal ≠ current_balance：截图「分期金额/分期本金」进 principal；「剩余待还」进 current_balance。
-2. 你必须运用数学推理，结合当前系统时间（${currentDate}）与用户输入的信息，尽可能推算上述字段，而不是一味追问。能算出则 is_complete=true、confidence=high。
-3. 【具体推理公式与规范】：
-   - 【分期单据推算】：
-     - 若有"每期金额/月供"和"总期数"，且未说明已还期数：默认已还 0，remaining_periods=总期数；principal = 月供 * 总期数；current_balance = principal。
-       * 示例："京东白条分期6期，每期299.55元，从6月开始第一期"，今天 2026-06-08 → remaining=6，monthly=299.55，principal=current_balance=1797.3。
-     - 若有首期还款月与总期数：按今天推已还期数，remaining = 总期数 - 已还；principal = 月供 * 总期数（原始总额）；current_balance = 月供 * remaining（剩余待还）。
-       * 示例："中信分期每期58.55、9期、1月4日还首期"，今天 2026-06-08 → 已还约6期，remaining=3，principal=526.95，current_balance=175.65。
-     - 若截图同时有「分期金额/本金」与「剩余待还」：principal 用前者，current_balance 用后者，勿把剩余填进本金。
-   - 【普通信用卡/一次性单据】：
-     - 若说"信用卡下月还398.11"且无分期关键字：debt_type=credit_card，principal 与 current_balance 均=该金额，remaining_periods=1，is_complete=true。
-4. annual_rate 和 payment_day 缺失时可允许为 null，此时 confidence 为 missing，且不影响 is_complete。
-
-【订阅推理规则】
-1. 订阅的核心字段为 name、amount、billing_cycle。三者齐全即可将 is_complete 设为 true。
-2. category 根据服务名称智能推断：视频平台→video，音乐平台→music，AI 工具→ai，编程工具→programming，等等。
-3. next_billing_date 如用户未明确说明，不要猜测，设为 null。
-
-【信用账户推理规则】
-1. 信用账户的核心字段为 name。只要有名称即可将 is_complete 设为 true。
-2. last_four、bill_day、payment_day、credit_limit 等为补充字段，缺失不影响 is_complete。
-3. credit_limit 单位为元（用户说"额度5万"应转为 50000）。
-
-【通用规则】
-1. 只有在确实缺少信息且通过推理也无法算出的情况下，才需要将 is_complete 设为 false，并在 clarify_question 中提问。
-2. 每轮只生成一个整体的 clarify_question，用朋友对话一样的口语化中文，提示用户补充信息。如果所有数据都已提取或推理齐全，则 clarify_question 必须设为 null。
-3. 平台名/服务名保留用户原始表述。金额统一转为元（number）。
-4. 如果系统输入提供了先前已经提取的数据状态，请在此基础上更新或添加，并保留先前的 temp_id；对于已补充完整或未提及需要补充的条目，请保持原样，不要随意修改或丢失已有的字段。
-5. 用户输入可能同时包含多种类型的数据（如同时提到负债和订阅），必须在 items 数组中为每一条数据生成独立的条目，使用正确的 record_type。`;
-  }
-
-  /** OCR 文本快速结构化：短 prompt，避免全量 getSystemPrompt 拖垮 Coding 模型 */
-  private static getOcrTextSystemPrompt(currentDate: string): string {
-    return `从 OCR/听写文本提取财务记录。今天=${currentDate}。只输出 JSON：
-{"items":[{"temp_id":"1","record_type":"debt","parsed_fields":{"platform":"","debt_type":"installment","principal":0,"current_balance":0,"monthly_payment":0,"total_periods":0,"remaining_periods":0,"payment_day":null,"next_payment_date":null},"confidence":{},"is_complete":true}],"clarify_question":null,"is_complete":true}
-金额为元。有「n/m期」「分期金额/本金」「剩余待还」「还款日」时：principal=分期本金，current_balance=剩余待还（勿混用）。不要 markdown。`
-  }
-
-  private static async callOpenAICompatible(url: string, key: string, model: string, text: string,
-    fast: boolean = false): Promise<ParseResult> {
+  private static async callUnified(url: string, key: string, model: string, text: string,
+    jpegBase64: string): Promise<ParseResult> {
+    const isImage = jpegBase64.length > 0
     const date = new Date()
     const year = date.getFullYear()
     const month = ('0' + (date.getMonth() + 1)).slice(-2)
     const day = ('0' + date.getDate()).slice(-2)
     const currentDate = `${year}-${month}-${day}`
     const modelName = model.length > 0 ? model : 'deepseek-v4-flash'
+    const systemPrompt = buildUnifiedSystemPrompt(currentDate)
     let userText = text
-    const maxUser = fast ? 3500 : 6000
-    if (userText.length > maxUser) {
-      userText = userText.substring(0, maxUser)
+    if (!isImage && userText.length > 6000) {
+      // 截断标记与提示词约定一致：模型见到后不对缺失部分做确定性结论
+      userText = userText.substring(0, 6000) + '\n[输入已截断]'
     }
-    const systemPrompt = fast ?
-      AIService.getOcrTextSystemPrompt(currentDate) :
-      AIService.getSystemPrompt(currentDate)
-    const maxTokens = fast ? 900 : 1536
-    const readTimeout = fast ? 18000 : 25000
+    const userContent = isImage
+      ? '[' +
+      '{"type":"text","text":"提取财务信息，只返回JSON。"},' +
+      '{"type":"image_url","image_url":{"url":"data:image/jpeg;base64,' + jpegBase64 + '","detail":"high"}}' +
+      ']'
+      : JSON.stringify(userText)
+    // 图片直发视觉模型：准确性优先，给足读取时间；文字保持短超时
+    const maxTokens = isImage ? 2048 : 1536
+    const readTimeout = isImage ? 60000 : 25000
     const bodyStr = '{' +
       '"model":' + JSON.stringify(modelName) + ',' +
       '"messages":[' +
       '{"role":"system","content":' + JSON.stringify(systemPrompt) + '},' +
-      '{"role":"user","content":' + JSON.stringify(userText) + '}' +
+      '{"role":"user","content":' + userContent + '}' +
       '],' +
       '"max_tokens":' + maxTokens + ',' +
       '"response_format":{"type":"json_object"}' +
       '}'
+    const errPrefix = isImage ? 'VISION_' : 'HTTP_'
     try {
       const response = await AIService.requestOnce(
         url,
@@ -421,7 +227,7 @@ confidence 字段与 parsed_fields 键名一一对应，值为 "high"|"medium"|"
           expectDataType: http.HttpDataType.STRING,
           usingCache: false,
           usingProtocol: http.HttpProtocol.HTTP1_1,
-          connectTimeout: 10000,
+          connectTimeout: 15000,
           readTimeout: readTimeout
         }
       )
@@ -429,23 +235,31 @@ confidence 字段与 parsed_fields 键名一一对应，值为 "high"|"medium"|"
         const raw = response.result !== undefined && response.result !== null
           ? response.result.toString()
           : ''
-        return AIService.failureResult('HTTP_ERROR_' + response.responseCode +
-          AIService.safeErrSnippet(raw))
+        // 保持既有错误码格式：文字 HTTP_ERROR_xxx / 图片 VISION_HTTP_xxx（上层按前缀匹配文案）
+        const httpErrCode = isImage
+          ? 'VISION_HTTP_' + response.responseCode
+          : 'HTTP_ERROR_' + response.responseCode
+        return AIService.failureResult(httpErrCode + AIService.safeErrSnippet(raw))
       }
       const rawResult = response.result !== undefined && response.result !== null
         ? response.result.toString()
         : ''
       if (rawResult.length === 0) {
-        return AIService.failureResult('HTTP_EMPTY_BODY')
+        return AIService.failureResult(errPrefix + 'EMPTY_BODY')
       }
       const content = AIService.extractAssistantContent(rawResult)
       if (content.length === 0) {
-        return AIService.failureResult('HTTP_EMPTY_CONTENT')
+        return AIService.failureResult(errPrefix + 'EMPTY_CONTENT')
       }
-      return AIService.parseJson(content)
+      return AIService.parseJson(content, currentDate)
     } catch (err) {
-      return AIService.failureResult('HTTP_EXCEPTION' + AIService.safeErrSnippet(
-        AIService.describeCaughtError(err as Object)))
+      const msg = AIService.describeCaughtError(err as Object)
+      const lower = msg.toLowerCase()
+      if (lower.indexOf('timeout') >= 0 || lower.indexOf('timed out') >= 0 ||
+        lower.indexOf('time out') >= 0 || msg.indexOf('超时') >= 0) {
+        return AIService.failureResult(errPrefix + 'TIMEOUT' + AIService.safeErrSnippet(msg))
+      }
+      return AIService.failureResult(errPrefix + 'EXCEPTION' + AIService.safeErrSnippet(msg))
     }
   }
 
@@ -507,7 +321,7 @@ confidence 字段与 parsed_fields 键名一一对应，值为 "high"|"medium"|"
     return s.trim()
   }
 
-  private static parseJson(content: string): ParseResult {
+  private static parseJson(content: string, currentDate: string): ParseResult {
     try {
       const cleaned = AIService.stripMarkdownFence(content)
       const data = JSON.parse(cleaned) as Record<string, Object>
@@ -559,6 +373,7 @@ confidence 字段与 parsed_fields 键名一一对应，值为 "high"|"medium"|"
           result.items.push(parsed)
         }
       }
+      AIService.sanitizeParseResult(result, currentDate)
       return result
     } catch (err) {
       // 禁止把模型原文写进错误码（可能含财务字段，且会进 rawContent 链路）
@@ -566,6 +381,77 @@ confidence 字段与 parsed_fields 键名一一对应，值为 "high"|"medium"|"
       return AIService.failureResult(
         'PARSING_EXCEPTION: ' + errBrief + ' | content_len=' + content.length
       )
+    }
+  }
+
+  /**
+   * 输出校验与清洗（错误处理与业务规则验证）：
+   * - 金额类字段必须是有限数字，否则置 null（防字符串/NaN/Infinity 入库）
+   * - 期数必须是正整数，否则置 null
+   * - 日期字段不限输入格式（账单/票据形态多样），尽力归一化；完全无法解析才置 null
+   * - 期数一致性：分期且 total>0 时 remaining 收敛到 [1, total]
+   * - debt 缺 platform 时补默认值，避免下游出现空平台
+   */
+  private static sanitizeParseResult(result: ParseResult, currentDate: string): void {
+    const moneyKeys: string[] = ['principal', 'current_balance', 'monthly_payment',
+      'annual_rate', 'amount', 'credit_limit']
+    const intKeys: string[] = ['total_periods', 'remaining_periods', 'bill_day',
+      'payment_day', 'annual_fee_required_swipes', 'grace_period_days', 'interest_free_days']
+    const dateKeys: string[] = ['start_date', 'next_payment_date', 'next_billing_date',
+      'expiry_date']
+    for (let i = 0; i < result.items.length; i++) {
+      const item = result.items[i]
+      for (let k = 0; k < moneyKeys.length; k++) {
+        const key = moneyKeys[k]
+        const v = item.parsedFields.get(key)
+        if (v === undefined || v === null || v === '') {
+          continue
+        }
+        const n = typeof v === 'number' ? v : Number(v)
+        if (isNaN(n) || !isFinite(n) || n < 0) {
+          item.parsedFields.set(key, null)
+        } else {
+          item.parsedFields.set(key, n)
+        }
+      }
+      for (let k = 0; k < intKeys.length; k++) {
+        const key = intKeys[k]
+        const v = item.parsedFields.get(key)
+        if (v === undefined || v === null || v === '') {
+          continue
+        }
+        const n = typeof v === 'number' ? v : Number(v)
+        if (isNaN(n) || !isFinite(n) || n <= 0 || Math.floor(n) !== n) {
+          item.parsedFields.set(key, null)
+        } else {
+          item.parsedFields.set(key, n)
+        }
+      }
+      for (let k = 0; k < dateKeys.length; k++) {
+        const key = dateKeys[k]
+        const v = item.parsedFields.get(key)
+        if (v === undefined || v === null || v === '') {
+          continue
+        }
+        const monthOnly = key === 'expiry_date'
+        const preferFuture = key === 'next_payment_date' || key === 'next_billing_date'
+        item.parsedFields.set(key, normalizeFlexibleDate(`${v}`, currentDate, monthOnly, preferFuture))
+      }
+      // 期数一致性：分期且总期数有效时，剩余期数收敛到 [1, total]
+      if (item.recordType === 'debt') {
+        const dt = item.parsedFields.get('debt_type')
+        const total = item.parsedFields.get('total_periods')
+        const remain = item.parsedFields.get('remaining_periods')
+        if (dt === 'installment' && typeof total === 'number' && total > 0) {
+          if (typeof remain !== 'number' || remain < 1 || remain > total) {
+            item.parsedFields.set('remaining_periods', total)
+          }
+        }
+        const platform = item.parsedFields.get('platform')
+        if (platform === undefined || platform === null || `${platform}`.trim().length === 0) {
+          item.parsedFields.set('platform', '未知平台')
+        }
+      }
     }
   }
 

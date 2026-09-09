@@ -1,6 +1,6 @@
 # 安全问题披露
 
-本文件对应 HarmonyOS 端（`aiyoufu/go-forward-app`）。桌面端另有 [`go-forward-desktop/SECURITY.md`](https://github.com/aiyoufu/go-forward-desktop/blob/main/SECURITY.md)，两端共用同一个 Supabase 后端，涉及云端的漏洞请一并说明发生在哪一端。
+本文件对应 GoForward 的 HarmonyOS 端（`aiyoufu/go-forward-app`）。
 
 ## 报告通道
 
@@ -29,7 +29,7 @@
 - DEK 与 Supabase 会话 token 缓存在 Asset Store Kit（关键资产，`auth/SecureStore.ets`，`DEVICE_FIRST_UNLOCKED`）—— 本机已持有会话 token 即可直接读取云端全部数据，缓存 DEK 不引入额外的本地风险面。
 - 用户自行配置的第三方 AI API Key 由设备直连用户指定的服务商，不经过开发者服务器；该 Key 的泄露风险归属用户与其服务商。
 - 自建 Supabase 环境因迁移未跑全、Realtime publication 未配、RLS 策略缺失导致的问题 —— 属于部署配置，请在 Issue 里说明环境，不必走私密通道。
-- 内置金融机构图标（`entry/src/main/resources/rawfile/credit_logos/`）的商标与许可问题 —— 不是安全漏洞，走 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) 第五节的权利人异议通道。
+- 历史版本内置的金融机构图标（`entry/src/main/resources/rawfile/credit_logos/`）已于 2026-09 整体移除（参见 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) 第一节）。如仍在旧安装上看到残留像素，请升级到包含本次清理的版本，无需单独提报。
 
 **是漏洞：**
 
@@ -37,7 +37,7 @@
 - `service_role` key 出现在客户端代码、构建产物、脚本或 CI 配置里。它绕过全部 RLS，本仓库任何位置都不应存在。
 - **明文凭证出站**：`auth/DekManager.ets` 的 `encryptField` 在 DEK 不可用时会回退明文暂存本机（这是过渡期兜底），此时出站拦截是唯一防线 —— `sync/CreditAccountTableSync.ets` 拒绝把非 `enc:v1:` 的 CVV 推上云，`sync/SettingsTableSync.ets` 的 `toCloud` 白名单根本不含 `ai_text_key` / `ai_vision_key`。若能构造出「明文 CVV 或明文 AI Key 实际到达云端」的路径，请报告。
 - 密文被当明文回显：`decryptField` 在 DEK 缺失或解密失败时返回空串（凭证按「未配置」处理），不应把 `enc:v1:` 密文或错误明文吐给 UI。
-- 加密字段的密文可被降级写入云端，或 `enc:v1` 格式 / PBKDF2 轮数（KEK 600 000 轮）/ 盐与 IV 长度与桌面端的 `lib/crypto.ts` 不再逐字节互通，导致另一端解不开既有数据。
+- 加密字段的密文可被降级写入云端，或 `enc:v1` 格式 / PBKDF2 轮数（KEK 600 000 轮）/ 盐与 IV 长度被改动后，旧设备 / 旧版本客户端解不开既有数据。
 - 图标云存储（`platform/IconCloudService.ets`）的公开读 bucket 可被写入非本人路径，或上传路径可被构造为覆盖他人对象。
 - 意图框架（Insight Intent）、服务卡片、实况窗、NFC 碰一碰等系统入口可被其他应用在无用户确认的情况下调用，读到财务数据或写入记录。
 - 应用沙箱内的本地数据库（`relationalStore`，`SecurityLevel.S3`）可被同设备其他应用读取。

@@ -30,9 +30,7 @@ export class DetailSheetConfig {
   /** 角标语义：ok 绿 / warn 琥珀 / danger 红 / off 灰（与列表 StatusTag 一致） */
   badgeRole: string = 'off'
   iconUrl: string = ''
-  /** logo 裁切方式：方形图标 Cover；横卡 Contain 看全卡面 */
-  iconFit: ImageFit = ImageFit.Cover
-  /** 卡图按 ID-1 横卡展示，不和图标圆标混用 */
+  /** 是否为卡面 URL：仅用于 LogoImage 缓存前缀（卡面卡 face_ / 应用图标 icon_net_） */
   cardFace: boolean = false
   mark: string = ''
   markColor: string = '#2F3336'
@@ -144,11 +142,8 @@ export struct DetailSheetView {
               LogoImage({
                 theme: this.theme,
                 url: this.config.iconUrl,
-                logoSize: this.config.cardFace ? MotionTokens.listCardHeight : MotionTokens.listLogoSize,
-                ratio: this.config.cardFace ? MotionTokens.cardFaceRatio : 1,
-                radius: this.config.cardFace ? MotionTokens.listCardRadius : MotionTokens.listLogoRadius,
-                framed: !this.config.cardFace,
-                fit: this.config.cardFace ? ImageFit.Contain : this.config.iconFit,
+                logoSize: MotionTokens.listLogoSize,
+                radius: MotionTokens.listLogoRadius,
                 remoteExact: this.config.cardFace,
                 remotePrefix: this.config.cardFace ? 'card_face_' : 'icon_net_',
                 onError: () => {
@@ -174,7 +169,7 @@ export struct DetailSheetView {
 
             if (this.config.nameTagOnNewLine) {
               // 名称 + 尾号 pill 分两行（账户详情用）：名称在上、尾号 pill 居左
-              // 列高与左侧 logo 卡片对齐（listLogoSize / listCardHeight）
+              // 列高与左侧 logo 卡片对齐（listLogoSize）
               Column({ space: 4 }) {
                 Text(this.masked(this.config.name))
                   .fontSize(TypeScale.listPrimarySm)
@@ -199,7 +194,7 @@ export struct DetailSheetView {
                 }
               }
               .layoutWeight(1)
-              .height(this.config.cardFace ? MotionTokens.listCardHeight : MotionTokens.listLogoSize)
+              .height(MotionTokens.listLogoSize)
               .justifyContent(FlexAlign.Center)
               .alignItems(HorizontalAlign.Start)
               .margin({ right: 8 })

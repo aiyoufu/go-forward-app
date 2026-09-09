@@ -46,4 +46,22 @@ export default function handednessServiceTest() {
       HandednessService.stop(listener)
     })
   })
+
+  describe('HandednessService_setEnabled', () => {
+    it('默认开启', 0, () => {
+      expect(HandednessService.isEnabled()).assertTrue()
+    })
+
+    it('setEnabled_开关可切换', 0, () => {
+      HandednessService.setEnabled(false)
+      expect(HandednessService.isEnabled()).assertFalse()
+      HandednessService.setEnabled(true)
+      expect(HandednessService.isEnabled()).assertTrue()
+    })
+
+    it('setEnabled_重复设置不抛异常', 0, () => {
+      HandednessService.setEnabled(true)
+      expect(HandednessService.isEnabled()).assertTrue()
+    })
+  })
 }

@@ -18,6 +18,7 @@ import { ThemeColors, ThemeManager, TypeScale, MotionTokens } from 'common'
 import { AppStorageKeys } from 'common'
 import { Constants } from 'common'
 import { SettingsService } from 'service'
+import { AIParseOrchestrator } from 'service'
 import { UserService } from 'service'
 import { LightReading, LightSensorService } from 'service'
 import { ReceiptModel } from 'service'
@@ -68,6 +69,7 @@ export struct MainPage {
   @State sheetConfig: SheetDialogConfig = new SheetDialogConfig()
   /** 首次进入主页：MiniBar 长短按说明（仅展示一次，关闭后持久化） */
   @State @Watch('onMiniBarGuideChange') showMiniBarGuide: boolean = false
+  @StorageLink(AppStorageKeys.AI_CONFIG_REVISION) @Watch('onAiConfigRevision') aiConfigRevision: number = 0
   @StorageLink('listRefreshToken') @Watch('onListRefreshForReminder') listRefreshForReminder: number = 0
   private sheetCallback: (index: number) => void = () => {}
   @StorageLink('ambientLux') @Watch('onLuxChange') lux: number = -1
@@ -178,10 +180,62 @@ export struct MainPage {
       if (shown) {
         return
       }
+      if (!await this.isAiConfigured()) {
+        return
+      }
       this.guideLaunchTimer = setTimeout(() => {
         this.guideLaunchTimer = -1
         this.showMiniBarGuide = true
       }, 1200)
+    } catch (_e) {
+    }
+  }
+
+  /** AI 已配置 = 文字或图片任一渠道已填 key（与 Live/Chat 门槛一致） */
+  private async isAiConfigured(): Promise<boolean> {
+    try {
+      const uid = UserService.getCurrentUserId()
+      const cached = SettingsService.peekCache(uid)
+      const settings = cached !== null ? cached : await SettingsService.getSettings(uid)
+      return AIParseOrchestrator.canParseText(settings)
+    } catch (_e) {
+      return false
+    }
+  }
+
+  /** 折叠 MiniBar 点按：已配置 AI → 智能录入；未配置 → 展开手动新增菜单 */
+  private handleMiniBarTap(): void {
+    this.isAiConfigured().then((configured: boolean) => {
+      if (configured) {
+        this.openAiLive('keyboard')
+      } else {
+        this.expandMiniBar()
+      }
+    })
+  }
+
+  /** AI 配置变更令牌 @Watch 入口（保持同步签名） */
+  private onAiConfigRevision(): void {
+    this.maybeShowGuideAfterAiConfigured()
+  }
+
+  /** AI 配置完成后（设置页关闭 AI 配置 Sheet）：补播 MiniBar 引导（仅一次） */
+  private async maybeShowGuideAfterAiConfigured(): Promise<void> {
+    if (this.aiConfigRevision <= 0 || this.showMiniBarGuide || this.guideLaunchTimer !== -1) {
+      return
+    }
+    if (this.showAILive || this.showAllClearedCeremony) {
+      return
+    }
+    try {
+      const shown = await PreferencesService.getBool(Constants.PREF_MINI_BAR_GUIDE_SHOWN, false)
+      if (shown) {
+        return
+      }
+      if (!await this.isAiConfigured()) {
+        return
+      }
+      this.showMiniBarGuide = true
     } catch (_e) {
     }
   }
@@ -405,7 +459,6 @@ export struct MainPage {
   }
 
   private onBackgroundChange(): void {
-    // 回前台时重验会话：覆盖桌面端改密后手机应用一直挂在后台的场景
     if (!this.appInBackground) {
       AuthManager.validateCloudSession()
     }
@@ -558,8 +611,7 @@ export struct MainPage {
         GestureGroup(GestureMode.Exclusive,
           TapGesture({ count: 1 })
             .onAction(() => {
-              // 点按：AI 智能录入
-              this.openAiLive('keyboard')
+              this.handleMiniBarTap()
             }),
           LongPressGesture({ repeat: false, duration: 400 })
             .onAction(() => {

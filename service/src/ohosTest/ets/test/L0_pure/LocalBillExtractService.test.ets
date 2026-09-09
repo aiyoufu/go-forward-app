@@ -156,6 +156,68 @@ export default function localBillExtractServiceTest() {
       expect(it.parsedFields.get('monthly_payment')).assertEqual(1766.34)
     })
 
+    // 花呗/电商「分期详情」小额 6 期（9.67 + 9.64×5 = 57.87）：
+    // 商品名 + 商品详情 + 分期服务费 0.00 的电商语境曾被模型误判为一次性
+    it('分期详情OCR_小额6期_商品页不误判一次性', 0, () => {
+      const ocr =
+        '分期详情\n' +
+        '水卫士洗碗块洗碗机用 等2种商品 商品详情\n' +
+        '已优惠2.76(含国家贴息)\n' +
+        '57.87 分期本金\n0.00 分期服务费\n57.87 合计应还\n' +
+        '分期应还(元) 最后还款日\n' +
+        '1 9.67 2026年09月12日\n' +
+        '2 9.64 2026年10月12日\n' +
+        '3 9.64 2026年11月12日\n' +
+        '4 9.64 2026年12月12日\n' +
+        '5 9.64 2027年01月12日\n' +
+        '6 9.64 2027年02月12日\n'
+
+      const r = LocalBillExtractService.tryExtract(ocr)
+      expect(r !== null).assertTrue()
+      if (r === null) {
+        return
+      }
+      expect(LocalBillExtractService.isResultUsable(r)).assertTrue()
+      const it = r.items[0]
+      expect(`${it.parsedFields.get('debt_type')}`).assertEqual('installment')
+      expect(it.parsedFields.get('total_periods')).assertEqual(6)
+      expect(it.parsedFields.get('remaining_periods')).assertEqual(6)
+      expect(it.parsedFields.get('principal')).assertEqual(57.87)
+      expect(it.parsedFields.get('current_balance')).assertEqual(57.87)
+      expect(it.parsedFields.get('monthly_payment')).assertEqual(9.67)
+      expect(`${it.parsedFields.get('next_payment_date')}`).assertEqual('2026-09-12')
+      expect(it.parsedFields.get('payment_day')).assertEqual(12)
+      const note = `${it.parsedFields.get('note') ?? ''}`
+      expect(note.indexOf('"period_number":6') >= 0).assertTrue()
+    })
+
+    // 同上，OCR 把序号/金额/日期各拆一行（期供 <20 元，走窗口宽松扫描）
+    it('分期详情OCR_小额6期_拆行版式', 0, () => {
+      const ocr =
+        '分期详情\n' +
+        '水卫士洗碗块洗碗机用 等2种商品 商品详情\n' +
+        '57.87\n0.00\n57.87\n分期本金\n分期服务费\n合计应还\n' +
+        '分期应还(元)\n最后还款日\n' +
+        '1\n9.67\n2026年09月12日\n' +
+        '2\n9.64\n2026年10月12日\n' +
+        '3\n9.64\n2026年11月12日\n' +
+        '4\n9.64\n2026年12月12日\n' +
+        '5\n9.64\n2027年01月12日\n' +
+        '6\n9.64\n2027年02月12日\n'
+      const r = LocalBillExtractService.tryExtract(ocr)
+      expect(r !== null).assertTrue()
+      if (r === null) {
+        return
+      }
+      const it = r.items[0]
+      expect(`${it.parsedFields.get('debt_type')}`).assertEqual('installment')
+      expect(it.parsedFields.get('total_periods')).assertEqual(6)
+      expect(it.parsedFields.get('remaining_periods')).assertEqual(6)
+      expect(it.parsedFields.get('principal')).assertEqual(57.87)
+      expect(it.parsedFields.get('monthly_payment')).assertEqual(9.67)
+      expect(`${it.parsedFields.get('next_payment_date')}`).assertEqual('2026-09-12')
+    })
+
     it('isResultUsable_空项_false', 0, () => {
       const r = LocalBillExtractService.tryExtract('今天天气真好出去玩')
       // null 不算 usable

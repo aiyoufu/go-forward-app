@@ -1,7 +1,7 @@
 import { describe, it, expect } from '@ohos/hypium'
 import { Utils } from 'common'
 import {
-  trendDir, tagRoleForSparkline, remainingDebtTrendTag, formatYuanGrouped, strokeColor, fillColorTop, fillColorBottom, haloColor
+  trendDir, tagRoleForSparkline, remainingDebtTrendTag, formatYuanGrouped, formatFenWithDecimal, strokeColor, fillColorTop, fillColorBottom, haloColor
 } from '../../../main/ets/components/Sparkline'
 
 export default function SparklineTest() {
@@ -37,20 +37,31 @@ export default function SparklineTest() {
   })
 
   describe('remainingDebtTrendTag', () => {
-    it('总待还回落_绿标且金额为差值', 0, async () => {
+    it('总待还回落_绿标且金额为差值（保留2位小数）', 0, async () => {
       const tag = remainingDebtTrendTag([78666, 77108, 29955, 0])
       expect(tag !== null).assertTrue()
       expect(tag.role).assertEqual('ok')
-      expect(tag.text).assertEqual('↓ ¥' + Utils.YUAN_GAP + '787')
+      expect(tag.text).assertEqual('↓ ¥' + Utils.YUAN_GAP + '786.66')
     })
-    it('总待还升高_红标', 0, async () => {
+    it('总待还升高_红标（保留2位小数）', 0, async () => {
       const tag = remainingDebtTrendTag([10000, 20000])
       expect(tag !== null).assertTrue()
       expect(tag.role).assertEqual('danger')
-      expect(tag.text).assertEqual('↑ ¥' + Utils.YUAN_GAP + '100')
+      expect(tag.text).assertEqual('↑ ¥' + Utils.YUAN_GAP + '100.00')
     })
     it('变化不足2%_不展示', 0, async () => {
       expect(remainingDebtTrendTag([10000, 10100]) === null).assertTrue()
+    })
+  })
+
+  describe('formatFenWithDecimal', () => {
+    it('分转元_2位小数_千分位', 0, async () => {
+      expect(formatFenWithDecimal(0)).assertEqual('0.00')
+      expect(formatFenWithDecimal(7)).assertEqual('0.07')
+      expect(formatFenWithDecimal(100)).assertEqual('1.00')
+      expect(formatFenWithDecimal(78666)).assertEqual('786.66')
+      expect(formatFenWithDecimal(100000)).assertEqual('1,000.00')
+      expect(formatFenWithDecimal(1234567)).assertEqual('12,345.67')
     })
   })
 

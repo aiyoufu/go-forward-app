@@ -165,6 +165,33 @@ export default function debtFormPreviewTest() {
       expect(result[8].total).assertEqual(5831)
       expect(result[0].date).assertEqual('2026-01-04')
     })
+    it('非自定义方式_预览编辑覆盖单期', 0, async () => {
+      // 等额摊算基础上，用户在预览中改了第 8 期金额/利息：该期按编辑值，其余期不变
+      const input = new DebtFormPreviewInput()
+      input.currentBalanceYuan = '519.93'
+      input.monthlyPaymentYuan = '58.31'
+      input.totalPeriods = '9'
+      input.remainingPeriods = '9'
+      input.totalInterestYuan = '4.86'
+      input.annualRate = '3.23'
+      input.isInstallment = true
+      input.repaymentMethod = 'equal_payment'
+      input.repaymentDate = '2026-01-04'
+      input.firstPaymentDate = '2026-01-04'
+      const edited = new CustomScheduleItem()
+      edited.period_number = 8
+      edited.principal = 4000
+      edited.interest = 100
+      edited.total = 4100
+      input.customSchedule = [edited]
+      const result = DebtFormPreview.buildSchedule(input)
+      expect(result.length).assertEqual(9)
+      expect(result[7].total).assertEqual(4100)
+      expect(result[7].principal).assertEqual(4000)
+      expect(result[7].interest).assertEqual(100)
+      expect(result[0].total).assertEqual(5831)
+      expect(result[8].total).assertEqual(5831)
+    })
     it('非分期_无还款日期_使用today', 0, async () => {
       const input = new DebtFormPreviewInput()
       input.currentBalanceYuan = '5000'

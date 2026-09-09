@@ -16,39 +16,37 @@ export class AIReadyCheck {
 
 /**
  * 图片解析流水线结果
- * - ocr_then_text：本地 OCR 有效，需再走文字模型
- * - vision：已得到解析结果（本地规则 / 文字 LLM / 视觉）
+ * - vision：已得到解析结果（大模型统一解析 / 错误提示）
  * - error：无法继续
  */
 export class AIImageParseOutcome {
   kind: string = 'error'
-  ocrText: string = ''
   visionResult: ParseResult | null = null
   message: string = ''
   /**
    * 实际路径，供 UI 提示：
-   * system_ocr_local | system_ocr_llm | vision_cloud | error
+   * vision_cloud | error
    */
   path: string = ''
 }
 
 /**
- * AI 解析编排（无 UI）
- * 对齐鸿蒙端侧 AI：Core Vision OCR + Core Speech 听写 优先；
- * 结构化：本地规则 → 文字 LLM → 视觉多模态兜底。
+ * AI 解析编排（无 UI）— 统一内容处理架构：
+ * 文字与图片共用同一条提示词、同一套大模型处理逻辑（AIService.callUnified），
+ * 不做本地 OCR 预处理、不注入端侧信号块；图片直发多模态模型，准确性优先。
+ * 本地规则解析（LocalBillExtractService.tryExtract）仅作为文字输入在
+ * 无 API Key 或模型失败时的最后兜底。
  */
 export class AIParseOrchestrator {
   static readonly MSG_TEXT_KEY_REQUIRED: string =
     '请先在设置中配置「文字解析」API Key'
   static readonly MSG_TEXT_PARSE_REQUIRED: string =
-    '请先在设置中配置「文字解析」（键盘、系统听写与 OCR 文本均需使用）'
-  static readonly MSG_VISION_REQUIRED: string =
-    '未识别到文字。可在设置开启「图片」解析，或更换更清晰的图片。'
+    '请先在设置中配置「文字解析」（键盘与系统听写均需使用）'
+  static readonly MSG_IMAGE_KEY_REQUIRED: string =
+    '请先在设置中配置「图片」或「文字解析」API Key 后再识图'
   static readonly MSG_IMAGE_ENCODE_FAIL: string = '图片无法打开，请更换后重试'
   static readonly MSG_IMAGE_PARSE_FAIL: string = '图片识别失败，请重试'
   static readonly MSG_EMPTY_IMAGE: string = '未识别到可用的负债、订阅或账户信息'
-  static readonly MSG_OCR_LOCAL_ONLY: string =
-    '已用系统 OCR 读出文字，但本地规则未完整识别且未配置 AI Key。可补充描述后发送，或到设置接通文字/图片解析。'
   /** 视觉模型读超时 / 网关超时 */
   static readonly MSG_VISION_TIMEOUT: string =
     '识别超时：模型长时间未返回，请检查网络或在 AI 设置中换一个响应更快的模型后重试'
@@ -87,61 +85,39 @@ export class AIParseOrchestrator {
   }
 
   /**
-   * 文字解析：本地规则（秒级）→ 云端文字模型。
-   * 无 Key 时：本地规则成功则直接返回；否则引导配置。
+   * 文字解析（统一入口）：大模型统一提示词解析；
+   * 无 Key 或模型失败/为空时本地规则兜底；仍无结果且无 Key 时引导配置。
    */
   static async parseText(userText: string): Promise<ParseResult> {
-    return AIParseOrchestrator.parseTextInternal(userText, false)
-  }
-
-  /** OCR 后：本地规则优先，云端用短 prompt */
-  static async parseTextFromOcr(userText: string): Promise<ParseResult> {
-    return AIParseOrchestrator.parseTextInternal(userText, true)
-  }
-
-  private static async parseTextInternal(userText: string, fromOcr: boolean): Promise<ParseResult> {
-    const channel = fromOcr ? 'ocr' : 'text'
-    try {
-      const local = LocalBillExtractService.tryExtract(userText)
-      // OCR 场景：只要本地抽出可用金额/期数就立即返回，绝不拖云端
-      if (local !== null && LocalBillExtractService.isResultUsable(local)) {
-        AnalyticsService.trackAiParseResult(true, channel, local.items.length)
-        return local
+    const config = await AIParseOrchestrator.resolveTextParseConfig()
+    let remote: ParseResult | null = null
+    if (config !== null) {
+      try {
+        remote = await AIService.parseDebtText(userText, config)
+      } catch (_e) {
+        remote = null
       }
-      const config = await AIParseOrchestrator.resolveTextParseConfig()
-      if (config === null) {
-        if (local !== null && local.items.length > 0) {
-          AnalyticsService.trackAiParseResult(true, channel, local.items.length)
-          return local
-        }
-        const r = new ParseResult()
-        r.rawContent = 'TEXT_DISABLED'
-        r.clarifyQuestion = AIParseOrchestrator.MSG_TEXT_PARSE_REQUIRED
-        AnalyticsService.trackAiParseResult(false, channel, 0, 'no_key')
-        return r
-      }
-      const remote = fromOcr ?
-        await AIService.parseDebtTextFast(userText, config) :
-        await AIService.parseDebtText(userText, config)
-      if (remote.items.length === 0 && local !== null && local.items.length > 0) {
-        AnalyticsService.trackAiParseResult(true, channel, local.items.length)
-        return local
-      }
-      AnalyticsService.trackAiParseResult(remote.items.length > 0, channel, remote.items.length,
-        remote.items.length > 0 ? '' : 'empty')
-      return remote
-    } catch (_e) {
-      const local = LocalBillExtractService.tryExtract(userText)
-      if (local !== null && local.items.length > 0) {
-        AnalyticsService.trackAiParseResult(true, channel, local.items.length)
-        return local
-      }
-      const r = new ParseResult()
-      r.rawContent = 'HTTP_EXCEPTION: orchestrator'
-      r.clarifyQuestion = ''
-      AnalyticsService.trackAiParseResult(false, channel, 0, 'exception')
-      return r
     }
+    const local = LocalBillExtractService.tryExtract(userText)
+    if (remote !== null && remote.items.length > 0) {
+      AnalyticsService.trackAiParseResult(true, 'text', remote.items.length)
+      return remote
+    }
+    if (local !== null && local.items.length > 0) {
+      // 无 Key 或模型失败/为空：本地规则兜底（最后防线）
+      AnalyticsService.trackAiParseResult(true, 'text', local.items.length)
+      return local
+    }
+    if (remote !== null) {
+      // 保留模型的澄清问题或错误码（HTTP_/PARSING_/超时等）
+      AnalyticsService.trackAiParseResult(false, 'text', 0, 'empty')
+      return remote
+    }
+    const r = new ParseResult()
+    r.rawContent = 'TEXT_DISABLED'
+    r.clarifyQuestion = AIParseOrchestrator.MSG_TEXT_PARSE_REQUIRED
+    AnalyticsService.trackAiParseResult(false, 'text', 0, 'no_key')
+    return r
   }
 
   /**
@@ -166,11 +142,10 @@ export class AIParseOrchestrator {
   }
 
   /**
-   * 对已选 PixelMap：
-   * 1) **强制** Core Vision OCR（不因 isAvailable 短路跳过）
-   * 2) OCR 有字 → 本地规则；可用则 **立即返回**，绝不调视觉
-   * 3) 规则不够 → 短 prompt 文字 LLM（仍不调视觉）
-   * 4) OCR 无字才视觉兜底
+   * 对已选 PixelMap（统一图片解析）：
+   * 1) 压缩编码为 JPEG base64
+   * 2) 直发多模态大模型（与文字共用同一提示词），不做本地 OCR 预处理
+   * 3) 未配置 Key → 引导配置；失败 → 映射可读文案
    */
   static async parsePixelMap(
     pixelMap: image.PixelMap,
@@ -186,91 +161,39 @@ export class AIParseOrchestrator {
   private static async parsePixelMapCore(pixelMap: image.PixelMap): Promise<AIImageParseOutcome> {
     const out = new AIImageParseOutcome()
     try {
-      // 始终尝试系统 OCR；isAvailable 仅作提示，不得跳过
-      let ocrText = ''
-      try {
-        ocrText = await OcrService.recognizePixelMap(pixelMap)
-      } catch (_e) {
-        ocrText = ''
-      }
-      out.ocrText = ocrText
-
-      if (OcrService.isOcrTextUseful(ocrText)) {
-        // ① 本地规则（无网络）—— OCR 有字时最高优先
-        const local = LocalBillExtractService.tryExtract(ocrText)
-        if (local !== null && LocalBillExtractService.isResultUsable(local)) {
-          out.kind = 'vision'
-          out.visionResult = local
-          out.path = 'system_ocr_local'
-          // 未走 parseTextInternal，此处补记 ocr 通道
-          AnalyticsService.trackAiParseResult(true, 'ocr', local.items.length)
-          return out
-        }
-        // ② 快速文字 LLM（OCR 文本，短 prompt）；有字则 **禁止** 再走视觉
-        // 成功/失败由 parseTextInternal 已记 ai_parse_result
-        const textResult = await AIParseOrchestrator.parseTextFromOcr(ocrText)
-        if (textResult.rawContent === 'TEXT_DISABLED') {
-          if (local !== null && local.items.length > 0) {
-            out.kind = 'vision'
-            out.visionResult = local
-            out.path = 'system_ocr_local'
-            return out
-          }
-          // 有 OCR 文本但无 Key：填入引导，绝不静默转视觉拖死
-          out.kind = 'error'
-          out.message = AIParseOrchestrator.MSG_OCR_LOCAL_ONLY
-          out.path = 'system_ocr_need_key'
-          return out
-        }
-        if (textResult.items.length === 0 && textResult.rawContent.length > 0) {
-          if (local !== null && local.items.length > 0) {
-            out.kind = 'vision'
-            out.visionResult = local
-            out.path = 'system_ocr_local'
-            return out
-          }
-          if (AIParseOrchestrator.isVisionTimeout(textResult.rawContent)) {
-            out.kind = 'error'
-            out.message = AIParseOrchestrator.MSG_VISION_TIMEOUT
-            out.path = 'system_ocr_llm_timeout'
-            return out
-          }
-          if (textResult.rawContent.indexOf('HTTP_ERROR_401') === 0 ||
-            textResult.rawContent.indexOf('HTTP_ERROR_403') === 0) {
-            out.kind = 'error'
-            out.message = AIParseOrchestrator.MSG_VISION_AUTH
-            out.path = 'error'
-            return out
-          }
-          if (textResult.rawContent.indexOf('HTTP_') === 0 ||
-            textResult.rawContent.indexOf('PARSING_') === 0 ||
-            textResult.rawContent.indexOf('FORMAT_') === 0) {
-            out.kind = 'error'
-            out.message = textResult.rawContent.indexOf('FORMAT_') === 0 ?
-              AIParseOrchestrator.MSG_FORMAT_ANTHROPIC :
-              AIParseOrchestrator.MSG_IMAGE_PARSE_FAIL
-            out.path = 'error'
-            return out
-          }
-        }
-        out.kind = 'vision'
-        out.visionResult = textResult
-        out.path = textResult.rawContent.indexOf('LOCAL_RULE') === 0 ?
-          'system_ocr_local' : 'system_ocr_llm'
+      const config = await AIParseOrchestrator.resolveImageParseConfig()
+      if (config === null) {
+        out.kind = 'error'
+        out.message = AIParseOrchestrator.MSG_IMAGE_KEY_REQUIRED
+        out.path = 'error'
+        AnalyticsService.trackAiParseResult(false, 'vision', 0, 'no_key')
         return out
       }
-
-      // ③ 仅 OCR 无有效文字时，才允许视觉多模态
-      const visionOut = await AIParseOrchestrator.runVisionFallback(pixelMap, out, ocrText)
-      visionOut.path = visionOut.kind === 'error' ? 'error' : 'vision_cloud'
-      const vCount = visionOut.visionResult !== null ? visionOut.visionResult.items.length : 0
-      AnalyticsService.trackAiParseResult(
-        visionOut.kind !== 'error' && vCount > 0,
-        'vision',
-        vCount,
-        visionOut.kind === 'error' ? 'vision_fail' : ''
-      )
-      return visionOut
+      const b64 = await OcrService.pixelMapToJpegBase64(pixelMap)
+      if (b64.length === 0) {
+        out.kind = 'error'
+        out.message = AIParseOrchestrator.MSG_IMAGE_ENCODE_FAIL
+        out.path = 'error'
+        AnalyticsService.trackAiParseResult(false, 'vision', 0, 'encode_fail')
+        return out
+      }
+      const result = await AIService.parseDebtFromImage(b64, config)
+      if (result.items.length === 0 && result.rawContent.length > 0) {
+        const failMsg = AIParseOrchestrator.messageForVisionFailure(result.rawContent)
+        if (failMsg.length > 0) {
+          out.kind = 'error'
+          out.message = failMsg
+          out.path = 'error'
+          AnalyticsService.trackAiParseResult(false, 'vision', 0, 'vision_fail')
+          return out
+        }
+      }
+      out.kind = 'vision'
+      out.visionResult = result
+      out.path = 'vision_cloud'
+      AnalyticsService.trackAiParseResult(result.items.length > 0, 'vision',
+        result.items.length, result.items.length > 0 ? '' : 'empty')
+      return out
     } catch (_e) {
       out.kind = 'error'
       out.message = AIParseOrchestrator.MSG_IMAGE_PARSE_FAIL
@@ -278,6 +201,27 @@ export class AIParseOrchestrator {
       AnalyticsService.trackAiParseResult(false, 'vision', 0, 'exception')
       return out
     }
+  }
+
+  /**
+   * 图片解析配置：优先图片渠道；未配 Key 时复用文字渠道。
+   */
+  static async resolveImageParseConfig(): Promise<AIChannelConfig | null> {
+    const vision = await AIService.loadVisionChannelConfig()
+    if (vision.key.trim().length > 0) {
+      if (!vision.enabled) {
+        vision.enabled = true
+      }
+      return vision
+    }
+    const text = await AIService.loadTextChannelConfig()
+    if (text.key.trim().length > 0) {
+      if (!text.enabled) {
+        text.enabled = true
+      }
+      return text
+    }
+    return null
   }
 
   /**
@@ -320,39 +264,6 @@ export class AIParseOrchestrator {
     } catch (_e) {
       // best-effort: 文件名兜底失败不影响主识别结果
     }
-  }
-
-  /** 视觉多模态兜底（压缩图 + 短 prompt） */
-  private static async runVisionFallback(
-    pixelMap: image.PixelMap,
-    out: AIImageParseOutcome,
-    ocrText: string
-  ): Promise<AIImageParseOutcome> {
-    out.ocrText = ocrText
-    const vision = await AIService.loadVisionChannelConfig()
-    if (!vision.enabled || vision.key.length === 0) {
-      out.kind = 'error'
-      out.message = AIParseOrchestrator.MSG_VISION_REQUIRED
-      return out
-    }
-    const b64 = await OcrService.pixelMapToJpegBase64(pixelMap)
-    if (b64.length === 0) {
-      out.kind = 'error'
-      out.message = AIParseOrchestrator.MSG_IMAGE_ENCODE_FAIL
-      return out
-    }
-    const result = await AIService.parseDebtFromImage(b64, vision)
-    if (result.items.length === 0 && result.rawContent.length > 0) {
-      const failMsg = AIParseOrchestrator.messageForVisionFailure(result.rawContent)
-      if (failMsg.length > 0) {
-        out.kind = 'error'
-        out.message = failMsg
-        return out
-      }
-    }
-    out.kind = 'vision'
-    out.visionResult = result
-    return out
   }
 
   /** rawContent 是否表示请求超时（视觉或文字渠道） */

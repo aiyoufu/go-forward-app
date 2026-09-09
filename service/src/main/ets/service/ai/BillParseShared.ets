@@ -93,6 +93,10 @@ export function guessPlatform(text: string): string {
   if (text.indexOf('美团') >= 0) {
     return '美团月付'
   }
+  // 裸「月付」：作子串匹配锚点，便于命中各类 *月付 账户
+  if (text.indexOf('月付') >= 0) {
+    return '月付'
+  }
   if (text.indexOf('花呗') >= 0) {
     return '花呗'
   }

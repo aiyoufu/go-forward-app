@@ -22,8 +22,5 @@ SOFTWARE.
 
 ---
 
-例外：本许可证只覆盖本仓库的自有代码与文档。
-
-`entry/src/main/resources/rawfile/credit_logos/` 下的金融机构图标为各自权利人的
-商标，仅用于在应用内识别账户，不在本许可证的授权范围内，也不因本仓库开源而获得
-再分发授权。详见 THIRD_PARTY_NOTICES.md。权利人若认为收录不当，开 Issue 说明即会删除。
+例外：本许可证只覆盖本仓库的自有代码与文档。仓库不打包任何第三方机构的图标或
+其它素材；运行时由用户触发的第三方数据源权利状态见 THIRD_PARTY_NOTICES.md。

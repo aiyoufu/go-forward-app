@@ -224,7 +224,8 @@ export class CalculationService {
       return 0
     }
     const pending = CalculationService.getPendingAndStartPeriod(debt).pending
-    if (debt.repayment_method !== 'custom' && debt.monthly_payment > 0 && pending > 0) {
+    const noteSchedule = CalculationService.parseCustomSchedule(debt.note)
+    if (debt.repayment_method !== 'custom' && noteSchedule === null && debt.monthly_payment > 0 && pending > 0) {
       return debt.monthly_payment * pending
     }
     if (pending <= 0 && debt.current_balance > 0 && debt.monthly_payment > 0) {
@@ -511,14 +512,12 @@ export class CalculationService {
     schedule: CustomScheduleItem[] | null,
     startPeriod: number
   ): number {
-    if (debt.repayment_method === 'custom' && schedule) {
+    if (schedule) {
       const item = schedule.find(s => s.period_number === startPeriod + p)
       if (item) {
-        // schedule 已含利息时直接采用
         if (item.total > item.principal) {
           return item.total
         }
-        // 兼容旧数据/导入数据：schedule 只存本金但月供字段仍含息费时，用月供补齐利息
         if (item.total === item.principal && debt.monthly_payment > item.total) {
           return debt.monthly_payment
         }
@@ -837,6 +836,58 @@ export class CalculationService {
     return CalculationService.formatDate(d)
   }
 
+  /**
+   * 关联信用账户时按账户账单日/还款日从开始日期推算首期应还日（YYYY-MM-DD）。
+   * 交易日落在账单日及之后计入次月账单；还款日早于账单日时再顺延一月。
+   * 无账单日时退化为按还款日比较。无账单日或账单日/还款日越界时返回 ''。
+   * periodShift：中途录入时向后的期数偏移，逐月推进并钳制月末。
+   */
+  static firstDueDateForAccount(startISO: string, billDay: number, paymentDay: number,
+    periodShift: number = 0): string {
+    const start = new Date(startISO)
+    if (isNaN(start.getTime())) {
+      return ''
+    }
+    const pay = Math.round(paymentDay)
+    if (!(pay >= 1 && pay <= 31)) {
+      return ''
+    }
+    const bill = billDay >= 1 && billDay <= 31 ? Math.round(billDay) : 0
+    let year = start.getFullYear()
+    let month = start.getMonth() + 1
+    if (bill > 0) {
+      if (start.getDate() >= bill) {
+        month++
+        if (month > 12) {
+          month = 1
+          year++
+        }
+      }
+      if (pay < bill) {
+        month++
+        if (month > 12) {
+          month = 1
+          year++
+        }
+      }
+    } else if (start.getDate() > pay) {
+      month++
+      if (month > 12) {
+        month = 1
+        year++
+      }
+    }
+    month += Math.max(0, Math.round(periodShift))
+    while (month > 12) {
+      month -= 12
+      year++
+    }
+    const lastDay = new Date(year, month, 0).getDate()
+    const day = pay < lastDay ? pay : lastDay
+    return year + '-' + (month < 10 ? '0' + month : '' + month) + '-' +
+      (day < 10 ? '0' + day : '' + day)
+  }
+
   private static formatDate(date: Date): string {
     const year = date.getFullYear()
     const month = date.getMonth() + 1
@@ -846,8 +897,7 @@ export class CalculationService {
 
   /**
    * 指定月份固定应还总额（负债 + 订阅）。
-   * 逐行复刻 go-forward-desktop lib/calculations.ts calculateSingleMonthObligation（L594-703），
-   * 与本地 getDueAmountForMonth 口径无关、互不影响。金额单位：分。
+   * 金额单位：分。
    * 订阅 billingDate/endDate 在循环外创建、每个订阅通过 setTime 重置复用。
    */
   static calculateSingleMonthObligation(
@@ -870,7 +920,6 @@ export class CalculationService {
       let year = parsed.year
       let monthNum = parsed.month
       const schedule = CalculationService.parseCustomSchedule(debt.note)
-      // 本地 total_periods=0 对应云端 null（go-forward-desktop: total_periods ?? remaining_periods）
       const totalPeriods = debt.total_periods > 0 ? debt.total_periods : debt.remaining_periods
       const pendingIncludingCurrent = isInstallment
         ? Math.max(0, Math.min(debt.remaining_periods + 1, totalPeriods))
@@ -883,9 +932,8 @@ export class CalculationService {
           const periodNumber = startPeriod + p
           let amount: number = 0
           if (!isInstallment) {
-            // 非分期按余额（go-forward-desktop: current_balance != null && >= 0；本地 null 已落为 0）
             amount = debt.current_balance >= 0 ? debt.current_balance : debt.monthly_payment
-          } else if (debt.repayment_method === 'custom' && schedule) {
+          } else if (schedule) {
             const item = schedule.find(s => s.period_number === periodNumber)
             amount = item ? item.total : debt.monthly_payment
           } else {
@@ -964,7 +1012,7 @@ export class CalculationService {
     return result
   }
 
-  /** 月末日期钳制加月（go-forward-desktop addMonths：31 日 +1 月落到月末而非跨月） */
+  /** 月末日期钳制加月：31 日 +1 月落到月末而非跨月 */
   private static addMonthsClamped(date: Date, months: number): void {
     const day = date.getDate()
     date.setMonth(date.getMonth() + Math.round(months))

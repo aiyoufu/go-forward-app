@@ -1,5 +1,5 @@
 // 字段级加密门面：仅对「可重新录入」的凭证字段加解密（AI API Key、卡片 CVV），
-// 与 go-forward-desktop lib/crypto.ts 逐字节互通（enc:v1 格式，AES-256-GCM，DEK/KEK 模型）。
+// AES-256-GCM，DEK/KEK 模型，密文前缀 enc:v1:。
 // 保留 initialize / encryptRecord / decryptRecord 签名，各业务 Service 调用点不动。
 import { Constants } from 'common'
 import { DekManager } from './DekManager'
@@ -17,7 +17,7 @@ export class E2EEService {
     return E2EEService.transform(tableName, record, false)
   }
 
-  /** 表 → 敏感列（与 go-forward-desktop 加密字段一致）；非敏感表返回空数组 */
+  /** 表 → 敏感列；非敏感表返回空数组 */
   private static sensitiveColumns(tableName: string): string[] {
     if (tableName === Constants.TABLE_USER_SETTINGS) {
       return ['ai_text_key', 'ai_vision_key']

@@ -249,4 +249,45 @@ export default function calculationServiceTest() {
       expect(d.length).assertLarger(0)
     })
   })
+
+  describe('CalculationService_firstDueDateForAccount', () => {
+    it('9月开买_账单日1还款日6_记10月账单', 0, () => {
+      expect(CalculationService.firstDueDateForAccount('2026-09-08', 1, 6)).assertEqual('2026-10-06')
+    })
+    it('开买日在还款日之前_仍按账单日推次月', 0, () => {
+      // 9/5 录入：9 月账单 9/1 已出，首期仍应记 10 月账单（与「今天」无关）
+      expect(CalculationService.firstDueDateForAccount('2026-09-05', 1, 6)).assertEqual('2026-10-06')
+    })
+    it('开始日在账单日之前_记当月账单', 0, () => {
+      // 账单日 15 号：9/8 消费 → 9/15 出账 → 次月 3 号还款
+      expect(CalculationService.firstDueDateForAccount('2026-09-08', 15, 3)).assertEqual('2026-10-03')
+      // 账单日 15 号、同月 25 号还款：9/8 消费 → 9 月账单 → 9/25 还款
+      expect(CalculationService.firstDueDateForAccount('2026-09-08', 15, 25)).assertEqual('2026-09-25')
+    })
+    it('上月开始_本月账单', 0, () => {
+      expect(CalculationService.firstDueDateForAccount('2026-08-25', 1, 6)).assertEqual('2026-09-06')
+    })
+    it('跨年_12月开买_次年1月', 0, () => {
+      expect(CalculationService.firstDueDateForAccount('2026-12-20', 1, 6)).assertEqual('2027-01-06')
+    })
+    it('还款日大于月末_钳制到月末', 0, () => {
+      // 1/31 开买、账单日 31 → 2 月账单，还款日 31 钳到 2/28
+      expect(CalculationService.firstDueDateForAccount('2026-01-31', 31, 31)).assertEqual('2026-02-28')
+    })
+    it('无账单日_按开始日与还款日大小推', 0, () => {
+      expect(CalculationService.firstDueDateForAccount('2026-09-08', 0, 6)).assertEqual('2026-10-06')
+      expect(CalculationService.firstDueDateForAccount('2026-09-03', 0, 6)).assertEqual('2026-09-06')
+    })
+    it('当期偏移_中途录入向后推期', 0, () => {
+      expect(CalculationService.firstDueDateForAccount('2026-09-08', 1, 6, 2)).assertEqual('2026-12-06')
+      // 首期 2026-02-28（钳制），偏移 1 期到 3 月后 31 日不再钳制
+      expect(CalculationService.firstDueDateForAccount('2026-01-31', 31, 31, 1)).assertEqual('2026-03-31')
+      expect(CalculationService.firstDueDateForAccount('2026-09-08', 1, 6, 0)).assertEqual('2026-10-06')
+    })
+    it('非法输入_返回空', 0, () => {
+      expect(CalculationService.firstDueDateForAccount('', 1, 6)).assertEqual('')
+      expect(CalculationService.firstDueDateForAccount('bad-date', 1, 6)).assertEqual('')
+      expect(CalculationService.firstDueDateForAccount('2026-09-08', 1, 0)).assertEqual('')
+    })
+  })
 }

@@ -246,22 +246,31 @@ export struct DebtCard {
       return
     }
     const platform = this.debt.platform || ''
-    const projected = LocalDataStore.getAccounts()
     if (this.debt.credit_account_id && this.debt.credit_account_id.length > 0) {
       try {
         const acc = await CreditAccountService.getCreditAccountById(this.debt.credit_account_id)
-        if (acc && acc.icon_url && acc.icon_url.length > 0) {
-          this.setIcon(key, acc.icon_url, true)
-          return
+        if (acc) {
+          if (acc.icon_url && acc.icon_url.length > 0) {
+            this.setIcon(key, acc.icon_url, true)
+            return
+          }
+          const presetUrl = PlatformService.getLogoUrlForName(acc.name)
+          if (presetUrl.length > 0) {
+            this.setIcon(key, presetUrl, true)
+            return
+          }
         }
       } catch (_err) {
       }
     }
-    if (projected !== null) {
-      const matchedUrl = this.matchAccountIcon(projected, platform)
-      if (matchedUrl.length > 0) {
-        this.setIcon(key, matchedUrl, true)
-        return
+    if (!this.debt.credit_account_id || this.debt.credit_account_id.length === 0) {
+      const projected = LocalDataStore.getAccounts()
+      if (projected !== null) {
+        const matchedUrl = this.matchAccountIcon(projected, platform)
+        if (matchedUrl.length > 0) {
+          this.setIcon(key, matchedUrl, true)
+          return
+        }
       }
     }
     if (this.debt.icon_url && this.debt.icon_url.length > 0) {
@@ -283,13 +292,6 @@ export struct DebtCard {
 
   private showLogo(): boolean {
     return this.iconUrl.length > 0 && !this.iconFailed
-  }
-
-  private useCardFace(): boolean {
-    if (this.iconFailed) {
-      return false
-    }
-    return this.iconFromAccount || IconPickerService.isCardFaceUrl(this.iconUrl)
   }
 
   private brandMark(): string {
@@ -387,13 +389,8 @@ export struct DebtCard {
           LogoImage({
             theme: this.theme,
             url: this.iconUrl,
-            logoSize: this.useCardFace() ? MotionTokens.listCardHeight : MotionTokens.listLogoSize,
-            ratio: this.useCardFace() ? MotionTokens.cardFaceRatio : 1,
-            radius: this.useCardFace() ? MotionTokens.listCardRadius : MotionTokens.listLogoRadius,
-            framed: !this.useCardFace(),
-            fit: this.useCardFace() ? ImageFit.Contain : ImageFit.Cover,
-            remoteExact: this.useCardFace(),
-            remotePrefix: this.useCardFace() ? 'card_face_' : 'icon_net_',
+            logoSize: MotionTokens.listLogoSize,
+            radius: MotionTokens.listLogoRadius,
             onError: () => {
               this.iconFailed = true
             }

@@ -168,9 +168,10 @@ export default function platformServiceTest() {
     it('空字符串返回空', 0, async () => {
       expect(PlatformService.getLogoUrlForName('')).assertEqual('')
     })
-    it('信贷平台_花呗优先返回内置rawfile', 0, async () => {
+    it('信贷平台_花呗走域名favicon（不再返回内置rawfile）', 0, async () => {
       const url = PlatformService.getLogoUrlForName('花呗')
-      expect(url.startsWith('$rawfile:credit_logos/')).assertTrue()
+      expect(url.indexOf('rawfile') < 0).assertTrue()
+      expect(url.indexOf('dnspod') >= 0).assertTrue()
     })
     it('已知订阅走域名favicon', 0, async () => {
       const url = PlatformService.getLogoUrlForName('Netflix')
@@ -275,61 +276,25 @@ export default function platformServiceTest() {
     })
   })
 
-  describe('PlatformService_getLocalCreditLogoUrl', () => {
-    it('花呗走内置alipay.png', 0, () => {
-      const url = PlatformService.getLocalCreditLogoUrl('花呗')
-      expect(url).assertEqual('$rawfile:credit_logos/alipay.png')
-    })
-    it('借呗/花呗借钱共用alipay.png', 0, () => {
-      expect(PlatformService.getLocalCreditLogoUrl('借呗'))
-        .assertEqual('$rawfile:credit_logos/alipay.png')
-      expect(PlatformService.getLocalCreditLogoUrl('花呗借钱'))
-        .assertEqual('$rawfile:credit_logos/alipay.png')
-    })
-    it('微粒贷走wechat.png', 0, () => {
-      expect(PlatformService.getLocalCreditLogoUrl('微粒贷'))
-        .assertEqual('$rawfile:credit_logos/wechat.png')
-    })
-    it('京东金条走jd_finance.png', 0, () => {
-      expect(PlatformService.getLocalCreditLogoUrl('京东金条'))
-        .assertEqual('$rawfile:credit_logos/jd_finance.png')
-    })
-    it('招联好期贷走独立hqd图', 0, () => {
-      expect(PlatformService.getLocalCreditLogoUrl('招联好期贷'))
-        .assertEqual('$rawfile:credit_logos/zhaolian_hqd.png')
-    })
-    it('分期乐命中', 0, () => {
-      expect(PlatformService.getLocalCreditLogoUrl('分期乐'))
-        .assertEqual('$rawfile:credit_logos/fenqile.png')
-    })
-    it('关键字子串_还呗命中', 0, () => {
-      // 「我的还呗账单」包含 key 「还呗」
-      expect(PlatformService.getLocalCreditLogoUrl('我的还呗账单'))
-        .assertEqual('$rawfile:credit_logos/haibei.png')
-    })
-    it('未收录平台返回空', 0, () => {
-      expect(PlatformService.getLocalCreditLogoUrl('某个野鸡贷款平台'))
-        .assertEqual('')
-      expect(PlatformService.getLocalCreditLogoUrl('')).assertEqual('')
-    })
-    it('最长key优先_避免短名盖掉正解', 0, () => {
-      // 「微粒贷」(3字) 与「微信分期」(4字) 同名包含；应匹配更长的微信分期
-      expect(PlatformService.getLocalCreditLogoUrl('微信分期还款'))
-        .assertEqual('$rawfile:credit_logos/wechat.png')
+  describe('PlatformService_getLocalCreditLogoUrl_已移除', () => {
+    it('方法不存在_编译期保证', 0, () => {
+      // 内置金融机构图标于 2026-09 从仓库移除，getLocalCreditLogoUrl 不再导出。
+      // 此处仅作回归记录，不调用该方法以免编译失败。
+      expect(true).assertTrue()
     })
   })
 
-  describe('PlatformService_getLogoUrlForName_优先本地', () => {
-    it('花呗返回rawfile而非Clearbit', 0, () => {
+  describe('PlatformService_getLogoUrlForName_不再优先本地', () => {
+    it('花呗走域名favicon而非rawfile', 0, () => {
       const url = PlatformService.getLogoUrlForName('花呗')
-      expect(url.indexOf('rawfile') >= 0).assertTrue()
-      expect(url.indexOf('dnspod') < 0).assertTrue()
+      expect(url.indexOf('rawfile') < 0).assertTrue()
+      expect(url.indexOf('dnspod') >= 0).assertTrue()
     })
-    it('微粒贷返回rawfile', 0, () => {
+    it('微粒贷走域名favicon', 0, () => {
       const url = PlatformService.getLogoUrlForName('微粒贷')
-      expect(url).assertEqual('$rawfile:credit_logos/wechat.png')
+      expect(url.indexOf('rawfile') < 0).assertTrue()
     })
-    it('Netflix走Clearbit', 0, () => {
+    it('Netflix走域名favicon', 0, () => {
       const url = PlatformService.getLogoUrlForName('Netflix')
       expect(url.indexOf('dnspod') >= 0).assertTrue()
     })

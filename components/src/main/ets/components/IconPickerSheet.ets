@@ -76,18 +76,7 @@ export struct IconPickerSheet {
     this.searchSeq++
     const seq = this.searchSeq
     this.searching = true
-    let list: LogoCatalogItem[] = []
-    if (this.catalog === 'card') {
-      // 只收内置 rawfile 圆标：无内置图的预设会返回站点 favicon（方图），套横卡版式会被裁切
-      const platformHits = PlatformService.searchLogoCatalog(q)
-      for (let i = 0; i < platformHits.length; i++) {
-        if (IconPickerService.isRawfilePath(platformHits[i].url)) {
-          list.push(platformHits[i])
-        }
-      }
-    } else {
-      list = await IconPickerService.searchIconsByName(q)
-    }
+    const list: LogoCatalogItem[] = await IconPickerService.searchIconsByName(q)
     if (seq !== this.searchSeq) {
       return
     }

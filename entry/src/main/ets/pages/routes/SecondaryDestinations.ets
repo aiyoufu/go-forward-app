@@ -9,6 +9,7 @@ import { ExportImportPage } from '../ExportImportPage'
 import { LegalPage } from '../LegalPage'
 import { ProfilePage } from '../ProfilePage'
 import { AvatarCropPage } from '../AvatarCropPage'
+import { NotificationsPage } from '../NotificationsPage'
 import { RouteNames } from 'common'
 
 @Builder
@@ -27,6 +28,8 @@ export function secondaryDestination(name: string) {
     ProfilePage()
   } else if (name === RouteNames.AVATAR_CROP) {
     AvatarCropPage()
+  } else if (name === RouteNames.NOTIFICATIONS) {
+    NotificationsPage()
   }
 }
 

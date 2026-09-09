@@ -16,9 +16,8 @@
  * 只允许填 anon 公钥；service_role 私钥一律不得出现在客户端代码里。
  *
  * 留空时 App 可以正常构建运行，登录页会提示「请先配置 Supabase URL 和 ANON_KEY」。
- * 注意：本仓库不含 SQL。建库脚本在 go-forward-desktop 仓库的 supabase/migrations/（48 个迁移），
- *       跑完即有本端需要的表、bucket 与 RLS 策略；另有两处迁移未覆盖的缺口，
- *       详见 README 的「自备后端（Supabase）」一节。
+ * 注意：本仓库不含 SQL。需要按 README 的「自备后端（Supabase）」一节里
+ *       列出的表、bucket、RLS 策略自行建库；另有两处需手动补的缺口同见该节。
  */
 export class SupabaseConfig {
   static readonly URL: string = ''

@@ -922,18 +922,10 @@ export struct AILiveOverlay {
       // 仍停在 scanning 才应用结果（用户中途关闭则不再改 mode）
       // 注意：勿写 mode !== 'scanning' 后早退再比 confirm——ArkTS 会把 mode 收窄成字面量 scanning
       if (this.mode === 'scanning') {
-        if (outcome.path === 'system_ocr_local') {
-          AppToast.show('系统 OCR + 本地规则', 1200)
-        } else if (outcome.path === 'system_ocr_llm') {
-          AppToast.show('系统 OCR + 文字解析', 1200)
-        } else if (outcome.path === 'vision_cloud') {
-          AppToast.show('OCR 无字，视觉模型', 1500)
+        if (outcome.path === 'vision_cloud') {
+          AppToast.show('AI 识图', 1200)
         }
-        if (outcome.kind === 'ocr_then_text') {
-          this.inputText = outcome.ocrText
-          await this.parseText(outcome.ocrText, true)
-          handled = this.isPostScanResultMode()
-        } else if (outcome.kind === 'vision' && outcome.visionResult !== null) {
+        if (outcome.kind === 'vision' && outcome.visionResult !== null) {
           await this.applyParseResult(outcome.visionResult)
           handled = this.isPostScanResultMode()
         } else {
@@ -1276,8 +1268,11 @@ export struct AILiveOverlay {
         parts.push('月供 ' + `${monthly}`)
       }
       const dt = `${f.get('debt_type') ?? ''}`
-      if (dt.length > 0) {
-        parts.push(dt === 'installment' ? '分期' : dt)
+      const totalNum = Number(`${totalP ?? 0}`)
+      if (dt === 'installment' || totalNum > 1) {
+        parts.push('分期')
+      } else if (dt.length > 0) {
+        parts.push(dt === 'credit_card' ? '一次性' : dt)
       }
     }
     return parts.length > 0 ? '已识别：' + parts.join(' · ') : ''
@@ -1526,70 +1521,17 @@ export struct AILiveOverlay {
   }
 
   @Builder
-  skeletonCapsule(w: number, h: number, isAccent: boolean = false) {
-    Column()
-      .width(w)
-      .height(h)
-      .borderRadius(h / 2)
-      .backgroundColor(this.theme.surface3)
-      .opacity(0.55 + (this.sparklePhase % 40 < 20 ?
-        (this.sparklePhase % 40) / 20 :
-        (40 - (this.sparklePhase % 40)) / 20) * 0.35)
-  }
-
-  @Builder
-  skeletonBillRow(label: string, valueWidth: number, isAccent: boolean = false) {
-    Column() {
-      Row() {
-        Text(label)
-          .fontSize(TypeScale.bodySm)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(this.theme.text3)
-
-        Blank()
-
-        this.skeletonCapsule(valueWidth, 12, isAccent)
-      }
-      .width('100%')
-      .padding({ top: 11, bottom: 11 })
-
-      Row()
-        .width('100%')
-        .height(0.5)
-        .backgroundColor(this.theme.border)
-    }
-    .width('100%')
-    .padding({ left: 16, right: 16 })
-  }
-
-  @Builder
   parsingBody() {
-    Column({ space: 14 }) {
-      Column({ space: 10 }) {
-        ThinkingOrb({ theme: this.theme, orbSize: 64, orbState: 'working' })
-        Text('正在核对名称、金额等关键信息…')
-          .fontSize(TypeScale.bodySm)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(this.theme.text2)
-      }
-      .width('100%')
-      .alignItems(HorizontalAlign.Center)
-      .margin({ bottom: 4 })
-
-      Column({ space: 0 }) {
-        this.skeletonBillRow('平台', 96)
-        this.skeletonBillRow('金额', 72)
-        this.skeletonBillRow('期数', 48)
-        this.skeletonBillRow('月供', 64)
-      }
-      .width('100%')
-      .borderRadius(this.theme.radiusSm)
-      .backgroundColor(this.theme.sheetItemBackground())
-      .border({ width: 1, color: this.theme.borderStrong })
-      .clip(true)
+    Column({ space: 10 }) {
+      ThinkingOrb({ theme: this.theme, orbSize: 64, orbState: 'working' })
+      Text('正在核对名称、金额等关键信息…')
+        .fontSize(TypeScale.bodySm)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(this.theme.text2)
     }
     .width('100%')
-    .padding({ top: 4, bottom: 12 })
+    .alignItems(HorizontalAlign.Center)
+    .padding({ top: 24, bottom: 24 })
   }
 
   @Builder

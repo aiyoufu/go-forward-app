@@ -80,6 +80,9 @@ export default function appStorageKeysTest() {
     })
 
     describe('AppStorageKeys_NotificationSettingsSheetKeys', () => {
+      it('NOTIFICATION_UNREAD_COUNT值正确', 0, () => {
+        expect(AppStorageKeys.NOTIFICATION_UNREAD_COUNT).assertEqual('notificationUnreadCount')
+      })
       it('SETTINGS_OPEN_AI_SHEET值正确', 0, () => {
         expect(AppStorageKeys.SETTINGS_OPEN_AI_SHEET).assertEqual('settingsOpenAISheet')
       })

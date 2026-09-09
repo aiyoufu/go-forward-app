@@ -8,7 +8,7 @@ export class DbService {
    * 库表世代：migrateCloudIdColumns 内容变更时递增。
    * 成熟安装冷启动读到 version>=本值则跳过全部 ALTER 试错。
    */
-  private static readonly SCHEMA_VERSION: number = 3
+  private static readonly SCHEMA_VERSION: number = 4
   private static readonly META_KEY_VERSION: string = 'schema_version'
 
   static async init(context: Context): Promise<void> {
@@ -39,6 +39,14 @@ export class DbService {
     if (ver < 3) {
       // v2→v3：补齐 AI 配置列（此前 SCHEMA_VERSION 已到 2 会跳过 ALTER）
       await DbService.ensureUserSettingsAiColumns()
+    }
+    if (ver < 4) {
+      // v3→v4：智感握姿总开关列（老库缺列时 SettingsService 读默认开）
+      try {
+        await DbService.executeSql('ALTER TABLE user_settings ADD COLUMN hand_awareness_enabled INTEGER DEFAULT 1')
+      } catch {
+        // 列已存在时忽略
+      }
     }
     if (ver < DbService.SCHEMA_VERSION) {
       await DbService.writeSchemaVersion(DbService.SCHEMA_VERSION)
@@ -308,6 +316,7 @@ export class DbService {
         recovery_backup_encrypted TEXT,
         light_sense_enabled INTEGER DEFAULT 0,
         eye_care_enabled INTEGER DEFAULT 0,
+        hand_awareness_enabled INTEGER DEFAULT 1,
         theme_mode TEXT DEFAULT 'system',
         cloud_sync_enabled INTEGER DEFAULT 1,
         updated_at TEXT

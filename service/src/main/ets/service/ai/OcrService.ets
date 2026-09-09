@@ -1,4 +1,3 @@
-import { textRecognition } from '@kit.CoreVisionKit'
 import { Logger } from 'common'
 import { image } from '@kit.ImageKit'
 import { photoAccessHelper } from '@kit.MediaLibraryKit'
@@ -9,9 +8,9 @@ import { camera, cameraPicker } from '@kit.CameraKit'
 import { CryptoService } from '../auth/CryptoService'
 
 /**
- * 鸿蒙 Core Vision Kit 通用文字识别（端侧 OCR）。
- * 官方：SystemCapability.AI.TextRecognizer / @kit.CoreVisionKit
- * 单据极速主路径依赖本服务，勿默认跳过改走云端视觉。
+ * 图片选取/拍照与压缩编码服务。
+ * 统一内容处理架构：图片直发多模态大模型解析，不做本地 OCR 预处理；
+ * 本服务负责选图、拍照、解码缩放与 JPEG base64 编码。
  */
 export interface ImagePickResult {
   pixelMap: image.PixelMap | null
@@ -177,47 +176,10 @@ export class OcrService {
     }
   }
 
-  /** 对已选 PixelMap 做 OCR（调用方负责 release） */
-  static async recognizePixelMap(pixelMap: image.PixelMap): Promise<string> {
-    try {
-      const visionInfo: textRecognition.VisionInfo = { pixelMap: pixelMap }
-      const result = await textRecognition.recognizeText(visionInfo)
-      const raw = result !== undefined && result !== null ? (result.value ?? '') : ''
-      return raw.trim()
-    } catch (err) {
-      const error = err as BusinessError
-      Logger.error('OcrService', 'OCR failed: ' + error.message)
-      return ''
-    }
-  }
-
-  /**
-   * 本地 OCR 是否拿到「可用」文本：过短或几乎无字则视为失败，交给视觉模型
-   */
-  static isOcrTextUseful(text: string): boolean {
-    const t = text.replace(/\s+/g, '').trim()
-    if (t.length < 6) {
-      return false
-    }
-    // 至少含数字或中文，避免乱码/噪声
-    let hasDigit = false
-    let hasHan = false
-    for (let i = 0; i < t.length; i++) {
-      const c = t.charCodeAt(i)
-      if (c >= 0x30 && c <= 0x39) {
-        hasDigit = true
-      }
-      if (c >= 0x4e00 && c <= 0x9fff) {
-        hasHan = true
-      }
-    }
-    return hasDigit || hasHan
-  }
-
   /**
    * PixelMap → JPEG base64（不含 data: 前缀），供视觉模型。
    * 先缩到 VISION_MAX_EDGE 再压 JPEG；base64 仍超上限则二次压缩。
-   * 调用方须已完成 OCR（本方法会就地 scale 原图）。
+   * 统一内容处理架构：图片直发多模态大模型，不做本地 OCR 预处理。
    */
   static async pixelMapToJpegBase64(pixelMap: image.PixelMap): Promise<string> {
     try {

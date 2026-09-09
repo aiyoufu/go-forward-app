@@ -150,11 +150,8 @@ export struct RepaySheetView {
             LogoImage({
               theme: this.theme,
               url: this.iconUrl,
-              logoSize: this.useCardFace() ? MotionTokens.listCardHeight : MotionTokens.listLogoSize,
-              ratio: this.useCardFace() ? MotionTokens.cardFaceRatio : 1,
-              radius: this.useCardFace() ? MotionTokens.listCardRadius : MotionTokens.listLogoRadius,
-              framed: !this.useCardFace(),
-              fit: this.useCardFace() ? ImageFit.Contain : ImageFit.Cover,
+              logoSize: MotionTokens.listLogoSize,
+              radius: MotionTokens.listLogoRadius,
               remoteExact: this.useCardFace(),
               remotePrefix: this.useCardFace() ? 'card_face_' : 'icon_net_',
               onError: () => {

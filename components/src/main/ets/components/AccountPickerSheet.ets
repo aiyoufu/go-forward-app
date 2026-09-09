@@ -54,9 +54,9 @@ export struct AccountOptionIcon {
           .fontWeight(FontWeight.Bold)
           .fontColor(this.theme.onColorBlock())
       }
-      .width(this.useCardFace() ? MotionTokens.listCardHeight * MotionTokens.cardFaceRatio : 32)
-      .height(this.useCardFace() ? MotionTokens.listCardHeight : 32)
-      .borderRadius(this.useCardFace() ? MotionTokens.listCardRadius : this.theme.radiusSm)
+      .width(MotionTokens.listLogoSize)
+      .height(MotionTokens.listLogoSize)
+      .borderRadius(MotionTokens.listLogoRadius)
       .backgroundColor(this.avatarColor())
       .justifyContent(FlexAlign.Center)
       .alignItems(HorizontalAlign.Center)
@@ -65,12 +65,8 @@ export struct AccountOptionIcon {
         LogoImage({
           theme: this.theme,
           url: this.resolveLogoUrl(),
-          logoSize: this.useCardFace() ? MotionTokens.listCardHeight : 32,
-          inset: this.useCardFace() ? 0 : 3,
-          ratio: this.useCardFace() ? MotionTokens.cardFaceRatio : 1,
-          radius: this.useCardFace() ? MotionTokens.listCardRadius : this.theme.radiusSm,
-          framed: !this.useCardFace(),
-          fit: this.useCardFace() ? ImageFit.Contain : ImageFit.Cover,
+          logoSize: MotionTokens.listLogoSize,
+          radius: MotionTokens.listLogoRadius,
           remoteExact: true,
           remotePrefix: this.useCardFace() ? 'card_face_' : 'icon_net_',
           onError: () => {
@@ -79,8 +75,8 @@ export struct AccountOptionIcon {
         })
       }
     }
-    .width(this.useCardFace() ? MotionTokens.listCardHeight * MotionTokens.cardFaceRatio : 32)
-    .height(this.useCardFace() ? MotionTokens.listCardHeight : 32)
+    .width(MotionTokens.listLogoSize)
+    .height(MotionTokens.listLogoSize)
   }
 }
 

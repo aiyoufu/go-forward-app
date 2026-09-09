@@ -11,6 +11,7 @@ export default function appRouterTest() {
       expect(RouteNames.isSecondary(RouteNames.DEBT_FORM)).assertTrue()
       expect(RouteNames.isSecondary(RouteNames.AVATAR_CROP)).assertTrue()
       expect(RouteNames.isSecondary(RouteNames.PROFILE)).assertTrue()
+      expect(RouteNames.isSecondary(RouteNames.NOTIFICATIONS)).assertTrue()
     })
     it('isSecondary_Splash与Main非次级', 0, () => {
       expect(RouteNames.isSecondary(RouteNames.MAIN)).assertFalse()

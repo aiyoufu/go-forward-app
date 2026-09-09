@@ -2,22 +2,7 @@
 
 个人财富与秩序规划平台 —— 管好负债、理清订阅、规划还款，笃定向前。
 
-HarmonyOS NEXT 原生客户端（ArkTS，1 HAP + 3 HAR）。必须注册登录后使用，业务数据按账号同步至 Supabase 云端，与桌面端共用同一份数据。
-
-## 同一个项目的两个端
-
-「向前」是一套产品的两个客户端，共用同一个 Supabase 后端：
-
-| 端 | 仓库 | 技术栈 |
-|----|------|--------|
-| HarmonyOS（本仓库） | `aiyoufu/go-forward-app` | ArkTS / HarmonyOS NEXT |
-| 桌面端 | [`aiyoufu/go-forward-desktop`](https://github.com/aiyoufu/go-forward-desktop.git) | Next.js 15 / Tauri 2.x |
-
-两端各自独立构建发布，账号与数据通过 Supabase 打通。
-
-**建库脚本只在桌面端仓库**：[`go-forward-desktop/supabase/migrations/`](https://github.com/aiyoufu/go-forward-desktop/tree/main/supabase/migrations) 是两端共用的唯一真相，本仓库不含任何 SQL。
-
-两处加密字段（AI API Key、卡片 CVV）由两端**逐字节互通**地加解密，改任一端都会让另一端解不开既有数据，详见[字段级加密](#字段级加密与桌面端逐字节互通)。
+HarmonyOS NEXT 原生客户端（ArkTS，1 HAP + 3 HAR）。必须注册登录后使用，业务数据按账号同步至 Supabase 云端。
 
 ## 功能
 
@@ -49,7 +34,7 @@ HarmonyOS NEXT 原生客户端（ArkTS，1 HAP + 3 HAR）。必须注册登录�
 - **云端同步**：注册登录后，负债、订阅、账户、还款流水等按 `user_id` 同步至 Supabase，支持跨设备访问。
 - **不是端到端加密**：业务字段（金额、名称、日期）在云端为**明文存储**，保密性依赖 HTTPS/TLS 传输加密与行级安全策略（RLS）的账号隔离。应用锁是客户端界面锁，不构成数据加密；它只锁应用内界面，**桌面服务卡片与锁屏实况窗由系统渲染，不经应用锁、也不脱敏金额**，介意的人应移除卡片。只有凭证类字段另有客户端加密，见下。完整表述见应用内隐私政策与用户协议（`common/src/main/ets/common/LegalDocuments.ets`）与 [`SECURITY.md`](SECURITY.md)。
 
-### 字段级加密（与桌面端逐字节互通）
+### 字段级加密
 
 `service/src/main/ets/service/auth/E2EEService.ets` 只加密「可重新录入」的凭证列，AES-256-GCM，密文前缀 `enc:v1:`：
 
@@ -61,8 +46,6 @@ HarmonyOS NEXT 原生客户端（ArkTS，1 HAP + 3 HAR）。必须注册登录�
 密钥模型：随机 DEK 加密字段值，DEK 由登录密码经 PBKDF2（600 000 轮、SHA-256）派生的 KEK 包裹后存 `user_settings.enc_dek_wrapped` / `enc_dek_salt`，本机把 DEK 缓存在 Asset Store Kit 关键资产里（`auth/DekManager.ets`、`auth/SecureStore.ets`）。密钥丢失（邮件重置密码且本机无缓存）时只需重新录入凭证，没有恢复码流程。
 
 DEK 不可用时 `encryptField` 会回退明文**暂存本机**以便继续录入，此时出站拦截是唯一防线 —— 上表「去向」列就是这道防线的落点。这条不变量的完整表述见 [`SECURITY.md`](SECURITY.md)。
-
-> ⚠️ 桌面端用**完全相同的参数**加解密同一份数据（`lib/crypto.ts`）。迭代轮数、盐 / IV 长度、`enc:v1` 格式、加密列清单，改任一端都会让另一端解不开既有数据，**两端必须同步改**。注意桌面端会把 AI Key 同步上云、本端不会，所以云端 `user_settings` 的这两列只有桌面端写入。
 
 ## 克隆后必做：复制两个本机配置
 
@@ -157,18 +140,16 @@ chmod +x .githooks/pre-push
 
 留空也能构建运行，登录页会提示「请先配置 Supabase URL 和 ANON_KEY」。登录方式为 Supabase GoTrue 的**邮箱 + 密码**（注册 / 登录 / 刷新 / 找回密码 / 改资料），需在后台开启 Email provider；本端不含任何第三方 OAuth 登录。
 
-### 建库：跑桌面端仓库的迁移
+### 建库：按下方接口面清单自行建表
 
-本仓库不含 SQL，建库脚本在桌面端仓库：[`go-forward-desktop/supabase/migrations/`](https://github.com/aiyoufu/go-forward-desktop/tree/main/supabase/migrations)（48 个迁移，`001_initial_schema.sql` → `048_credit_accounts_interest_free.sql`）。按序在自己项目里跑完，GoForward 需要的 7 张同步表、3 个图标 bucket 与 RLS 策略就都有了。
+本仓库不含 SQL，请按本节「接口面清单」在自己 Supabase 项目里建出 7 张同步表、3 个图标 bucket 与对应的 RLS 策略。
 
-迁移**没有**覆盖两处，需手动补：
+两处需要**额外**手动补，迁移跑全也不能少：
 
-1. **`app_releases`** —— GoForward 的「新版本」页读这张表，但桌面端只有 `app_versions`（`022_app_versions.sql`），那是给桌面端更新器用的，列为 `version` / `notes` / `pub_date` / `download_url`，与本端要的结构化字段完全不同。缺表不会崩，`AppVersionService` 拿不到 200 就返回 `null`，只是版本检查静默失效。
-2. **Realtime publication** —— 迁移里没有任何 `alter publication` 语句，7 张同步表要在控制台 Database → Replication 手动加进 `supabase_realtime`。不加也能用，`SyncRealtime` 连不上会静默降级为轮询。
+1. **`app_releases`** —— GoForward 的「新版本」页读这张表（`version_name` / `version_code` / `release_date` / `features` / `release_notes`），缺表不会崩，`AppVersionService` 拿不到 200 就返回 `null`，只是版本检查静默失效。
+2. **Realtime publication** —— 7 张同步表要在控制台 Database → Replication 手动加进 `supabase_realtime`。不加也能用，`SyncRealtime` 连不上会静默降级为轮询。
 
-另外，桌面端仓库的 `006` / `030` 里的 pg_cron 每日提醒任务带占位符（`YOUR_PROJECT_REF`、`YOUR_SERVICE_ROLE_KEY`），跑完迁移不会自动生效；`031` / `039` 含 `TRUNCATE`，全新库按序跑无碍，**绝不可对已有数据的库重跑**。细节见桌面端仓库 README 的「公测运维注意」。
-
-下面这张接口面清单按本仓库 `service/` 的实际调用整理（不是设计文档），用来核对迁移跑完后是否对得上：
+下面这张接口面清单按本仓库 `service/` 的实际调用整理（不是设计文档），用来核对表、列、bucket 是否与本端期望一致：
 
 **PostgREST — `<URL>/rest/v1/<table>`**（`SupabaseRestService.ets`）
 
@@ -246,11 +227,9 @@ scripts/          # 本地门禁：run-all-smoke + whitebox / architecture / cra
 
 ## 第三方素材与免责声明
 
-应用内置了一批金融机构图标（`entry/src/main/resources/rawfile/credit_logos/`，23 个），用于在列表里快速认出账户。这些图标**只用于识别，本应用与任何机构均无关联、无背书**；图标选择面板底部也有同样的常驻提示。
+本仓库**不打包任何金融机构图标**。账户图标只能从相册选取，或由 App 在运行时按预设域名走公开 favicon 源（搜不到时退到 `getBrandVisual()` 的品牌色 + 文字字标）。完整运行时第三方数据源见 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)。
 
-完整清单、许可状态与运行时第三方数据源见 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)。权利人若认为收录不当，按该文件「五、联系方式」说明即会删除。仓库的开源许可证只覆盖自有代码，**不对这些图标再授权**。
-
-信用账户的图标只能从内置图标或相册选取；早前版本从第三方仓库检索银行卡卡面图的链路已整体移除，理由记录在 `THIRD_PARTY_NOTICES.md` 第二节。
+早前版本从第三方仓库检索银行卡卡面图的链路已整体移除，理由记录在 `THIRD_PARTY_NOTICES.md` 第二节；本次同步把「应用内置金融机构图标」也一起移除，把权利瑕疵挡在仓库层。
 
 本仓库不打包字体等其它第三方素材。
 
@@ -275,6 +254,4 @@ scripts/          # 本地门禁：run-all-smoke + whitebox / architecture / cra
 
 ## 许可证
 
-自有代码见 [`LICENSE`](LICENSE)（MIT）。
-
-例外：`entry/src/main/resources/rawfile/credit_logos/` 下的第三方金融机构图标**不受 MIT 覆盖**，仅作识别用途、不再授权，详见 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)。
+自有代码见 [`LICENSE`](LICENSE)（MIT）。本仓库不打包任何第三方素材，许可证仅覆盖自有代码。

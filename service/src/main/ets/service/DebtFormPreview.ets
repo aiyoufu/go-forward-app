@@ -73,15 +73,10 @@ export class DebtFormPreview {
       return []
     }
 
-    // PC 语义：remaining = 当期之后还剩几期；当期 = total - remaining
     const startPeriod = Math.max(1, totalPeriodsNum - remainingPeriodsNum)
     const firstPayDate = new Date(firstPaymentRaw)
 
-    /**
-     * 银行「每月等额」：每期应还相同、服务费均摊（中信/白条等额常见）。
-     * 有明确月供且月供×期数 > 本金时优先走这条，避免 equal_payment+年化重算 PMT
-     * 把 58.31 算成 58.55。
-     */
+    // 银行「每月等额」：每期应还相同、服务费均摊；custom 走表驱动
     const impliedFeeFen = monthlyPaymentNum * totalPeriodsNum - balanceNum
     const useEqualMonthly = monthlyPaymentNum > 0 &&
       totalPeriodsNum >= 2 &&
@@ -90,8 +85,9 @@ export class DebtFormPreview {
         totalInterestNum > 0 ||
         impliedFeeFen >= 1)
 
-    if (useEqualMonthly && input.customSchedule.length === 0) {
-      return DebtFormPreview.buildEqualMonthlySchedule(
+    let list: DebtPreviewItem[]
+    if (useEqualMonthly) {
+      list = DebtFormPreview.buildEqualMonthlySchedule(
         balanceNum,
         monthlyPaymentNum,
         totalInterestNum,
@@ -99,119 +95,115 @@ export class DebtFormPreview {
         startPeriod,
         firstPayDate
       )
-    }
-
-    const actualMonthlyPayment = monthlyPaymentNum > 0
-      ? monthlyPaymentNum
-      : Utils.yuanToFen(CalculationService.calculateSuggestedMonthlyPayment(
-        Utils.fenToYuan(balanceNum),
-        annualRateBp,
-        totalPeriodsNum,
-        input.repaymentMethod,
-        Utils.fenToYuan(totalInterestNum)
-      ))
-
-    // 从原始本金出发生成全量还款计划，确保已还期和待还期本息拆分一致
-    const fullDebt = new Debt()
-    fullDebt.principal = balanceNum
-    fullDebt.current_balance = balanceNum
-    fullDebt.annual_rate_bp = annualRateBp
-    fullDebt.remaining_periods = totalPeriodsNum
-    fullDebt.total_periods = totalPeriodsNum
-    fullDebt.monthly_payment = actualMonthlyPayment
-    fullDebt.repayment_method = input.repaymentMethod
-    fullDebt.total_interest = totalInterestNum
-    fullDebt.next_payment_date = Utils.formatDate(firstPayDate)
-
-    const fullItems = CalculationService.generatePaymentSchedule(fullDebt)
-    const fullMap = new Map<number, PaymentScheduleItem>()
-    for (const item of fullItems) {
-      fullMap.set(item.period_number, item)
-    }
-
-    const list: DebtPreviewItem[] = []
-
-    for (let p = 1; p <= totalPeriodsNum; p++) {
-      const scheduled = fullMap.get(p)
-      if (scheduled) {
-        list.push(new DebtPreviewItem(
-          scheduled.period_number,
-          scheduled.date,
-          scheduled.principal,
-          scheduled.interest,
-          scheduled.total,
-          scheduled.balance_after,
-          p < startPeriod ? 'paid' : 'pending'
+    } else {
+      const actualMonthlyPayment = monthlyPaymentNum > 0
+        ? monthlyPaymentNum
+        : Utils.yuanToFen(CalculationService.calculateSuggestedMonthlyPayment(
+          Utils.fenToYuan(balanceNum),
+          annualRateBp,
+          totalPeriodsNum,
+          input.repaymentMethod,
+          Utils.fenToYuan(totalInterestNum)
         ))
-      }
-    }
 
-    if (input.repaymentMethod === 'custom') {
-      for (const item of list) {
-        const custom = input.customSchedule.find((x: CustomScheduleItem) => x.period_number === item.period_number)
-        if (custom) {
-          item.principal = custom.principal
-          item.interest = custom.interest
-          item.total = custom.total
-          // 识别表自带还款日时覆盖推算日（例：第 1 期 2026-07-08）
-          if (custom.date.length >= 8) {
-            item.date = custom.date
-          }
-          if (custom.paid) {
-            item.status = 'paid'
-          }
-        }
+      // 从原始本金出发生成全量还款计划，确保已还期和待还期本息拆分一致
+      const fullDebt = new Debt()
+      fullDebt.principal = balanceNum
+      fullDebt.current_balance = balanceNum
+      fullDebt.annual_rate_bp = annualRateBp
+      fullDebt.remaining_periods = totalPeriodsNum
+      fullDebt.total_periods = totalPeriodsNum
+      fullDebt.monthly_payment = actualMonthlyPayment
+      fullDebt.repayment_method = input.repaymentMethod
+      fullDebt.total_interest = totalInterestNum
+      fullDebt.next_payment_date = Utils.formatDate(firstPayDate)
+
+      const fullItems = CalculationService.generatePaymentSchedule(fullDebt)
+      const fullMap = new Map<number, PaymentScheduleItem>()
+      for (const item of fullItems) {
+        fullMap.set(item.period_number, item)
       }
-      // 自定义表条数 = 总期数时，强制按表生成全量行（含已还），避免 total/remaining 不一致丢期
-      if (input.customSchedule.length >= totalPeriodsNum && totalPeriodsNum > 0) {
-        const full: DebtPreviewItem[] = []
-        const paidCutoff = startPeriod - 1
-        // 是否有 OCR 写入的 paid 标记
-        let hasPaidFlag = false
-        for (let i = 0; i < input.customSchedule.length; i++) {
-          if (input.customSchedule[i].paid) {
-            hasPaidFlag = true
-            break
-          }
-        }
-        // 缺日期时以表单下次还款日为基准前后推算
-        const nextPayDate = new Date(input.repaymentDate.length > 0 ? input.repaymentDate : Utils.todayString())
-        const pDate = new Date(nextPayDate.getTime())
-        for (let p = 1; p <= totalPeriodsNum; p++) {
-          const custom = input.customSchedule.find((x: CustomScheduleItem) => x.period_number === p)
-          const total = custom !== undefined ? custom.total : 0
-          const principal = custom !== undefined ? custom.principal : 0
-          const interest = custom !== undefined ? custom.interest : 0
-          let status: 'paid' | 'pending' = p <= paidCutoff ? 'paid' : 'pending'
-          if (hasPaidFlag && custom !== undefined) {
-            status = custom.paid ? 'paid' : 'pending'
-          }
-          // 优先用表内日期；否则按下次还款日推算
-          let dateStr = ''
-          if (custom !== undefined && custom.date.length >= 8) {
-            dateStr = custom.date
-          } else {
-            pDate.setTime(nextPayDate.getTime())
-            if (status === 'paid') {
-              pDate.setMonth(pDate.getMonth() - (startPeriod - p))
-            } else {
-              pDate.setMonth(pDate.getMonth() + (p - startPeriod))
-            }
-            dateStr = Utils.formatDate(pDate)
-          }
-          full.push(new DebtPreviewItem(
-            p,
-            dateStr,
-            principal,
-            interest,
-            total,
-            0,
-            status
+
+      list = []
+
+      for (let p = 1; p <= totalPeriodsNum; p++) {
+        const scheduled = fullMap.get(p)
+        if (scheduled) {
+          list.push(new DebtPreviewItem(
+            scheduled.period_number,
+            scheduled.date,
+            scheduled.principal,
+            scheduled.interest,
+            scheduled.total,
+            scheduled.balance_after,
+            p < startPeriod ? 'paid' : 'pending'
           ))
         }
-        full.sort((a: DebtPreviewItem, b: DebtPreviewItem) => a.period_number - b.period_number)
-        return full
       }
+    }
+
+    // 预览中编辑过的期（所有还款方式）优先于摊算值
+    for (const item of list) {
+      const custom = input.customSchedule.find((x: CustomScheduleItem) => x.period_number === item.period_number)
+      if (custom) {
+        item.principal = custom.principal
+        item.interest = custom.interest
+        item.total = custom.total
+        if (custom.date.length >= 8) {
+          item.date = custom.date
+        }
+        if (custom.paid) {
+          item.status = 'paid'
+        }
+      }
+    }
+
+    // 自定义表条数 = 总期数时按表生成全量行
+    if (input.repaymentMethod === 'custom' && input.customSchedule.length >= totalPeriodsNum && totalPeriodsNum > 0) {
+      const full: DebtPreviewItem[] = []
+      const paidCutoff = startPeriod - 1
+      let hasPaidFlag = false
+      for (let i = 0; i < input.customSchedule.length; i++) {
+        if (input.customSchedule[i].paid) {
+          hasPaidFlag = true
+          break
+        }
+      }
+      const nextPayDate = new Date(input.repaymentDate.length > 0 ? input.repaymentDate : Utils.todayString())
+      const pDate = new Date(nextPayDate.getTime())
+      for (let p = 1; p <= totalPeriodsNum; p++) {
+        const custom = input.customSchedule.find((x: CustomScheduleItem) => x.period_number === p)
+        const total = custom !== undefined ? custom.total : 0
+        const principal = custom !== undefined ? custom.principal : 0
+        const interest = custom !== undefined ? custom.interest : 0
+        let status: 'paid' | 'pending' = p <= paidCutoff ? 'paid' : 'pending'
+        if (hasPaidFlag && custom !== undefined) {
+          status = custom.paid ? 'paid' : 'pending'
+        }
+        let dateStr = ''
+        if (custom !== undefined && custom.date.length >= 8) {
+          dateStr = custom.date
+        } else {
+          pDate.setTime(nextPayDate.getTime())
+          if (status === 'paid') {
+            pDate.setMonth(pDate.getMonth() - (startPeriod - p))
+          } else {
+            pDate.setMonth(pDate.getMonth() + (p - startPeriod))
+          }
+          dateStr = Utils.formatDate(pDate)
+        }
+        full.push(new DebtPreviewItem(
+          p,
+          dateStr,
+          principal,
+          interest,
+          total,
+          0,
+          status
+        ))
+      }
+      full.sort((a: DebtPreviewItem, b: DebtPreviewItem) => a.period_number - b.period_number)
+      return full
     }
 
     list.sort((a: DebtPreviewItem, b: DebtPreviewItem) => a.period_number - b.period_number)

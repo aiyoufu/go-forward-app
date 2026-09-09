@@ -1,5 +1,5 @@
 import { LengthMetrics } from '@kit.ArkUI'
-import { ThemeColors, ThemeManager, TypeScale, MotionTokens } from 'common'
+import { ThemeColors, ThemeManager, TypeScale, MotionTokens, MotionHelper } from 'common'
 import {
   DashboardService,
   DashboardSummary,
@@ -22,13 +22,15 @@ import {
   SyncScheduler,
   PerfTrace,
   HomeSnapshotStore,
-  QuoteService
+  QuoteService,
+  NotificationService
 } from 'service'
 import { MonthlyPressure } from 'common'
 import { PressureChart, Sparkline, remainingDebtTrendTag } from 'components'
 import { EmptyState } from 'components'
 import { SkeletonList } from 'components'
 import { RepaySheetView } from 'components'
+import { NotificationsInbox, unreadBadgeLabel } from 'components'
 import { willClearAllAfterRepay } from 'service'
 import { Utils } from 'common'
 import { AppStorageKeys } from 'common'
@@ -41,6 +43,8 @@ import { greetingName } from './common/SettingsDisplay'
 
 /** 标题磨砂材质浮现的滚动阈值 vp */
 const HEADER_BLUR_THRESHOLD: number = 8
+/** 通知抽屉尚未测到高度时的离屏位移兜底 vp */
+const DRAWER_HIDE_FALLBACK: number = 720
 
 @Component
 export struct DashboardTab {
@@ -58,6 +62,8 @@ export struct DashboardTab {
   @StorageProp(AppStorageKeys.TOP_SAFE_HEIGHT) topSafe: number = 0
   /** 防窥脱敏态：系统检测到窥视时金额/名称/日期打码（AntiPeekService 驱动） */
   @StorageProp(AppStorageKeys.ANTI_PEEK_MASKED) antiPeekMasked: boolean = false
+  /** 通知未读数：链 NotificationsInbox 写入，驱动铃铛红点 */
+  @StorageProp(AppStorageKeys.NOTIFICATION_UNREAD_COUNT) unreadCount: number = 0
   /** 问候语里的名字：资料页昵称 > 云端昵称 > 邮箱前缀，空 = 只留问候语 */
   @State displayName: string = ''
   /** 资料页改昵称/头像后 bump；Tab 内组件无 onPageShow，靠此刷新问候名 */
@@ -71,6 +77,15 @@ export struct DashboardTab {
   /** 还款 Sheet（对齐 DebtsTab） */
   @State private showRepaySheet: boolean = false
   @State private repayDebtItem: Debt | null = null
+  /** 通知抽屉：从屏幕顶部下拉盖住问候语，点关闭/遮罩收起 */
+  @State private showNotificationsDrawer: boolean = false
+  @State private drawerOpen: boolean = false
+  @State private drawerOffsetY: number = -DRAWER_HIDE_FALLBACK
+  @State private drawerMaskOpacity: number = 0
+  @State private drawerPanelH: number = 0
+  @State private bellPressed: boolean = false
+  private drawerAnimTimer: number = -1
+  private drawerGen: number = 0
   /** 活跃负债数（全清仪式 Toast 判断） */
   @State private activeDebtCountForRepay: number = 0
   @State private completedDebtCountForRepay: number = 0
@@ -101,7 +116,91 @@ export struct DashboardTab {
     this.loadDisplayName()
     this.applyStoreOrDiskFrame()
     this.loadData()
+    this.loadUnreadCount()
     this.lastHandledRefreshToken = this.listRefreshToken
+  }
+
+  aboutToDisappear() {
+    if (this.drawerAnimTimer !== -1) {
+      clearTimeout(this.drawerAnimTimer)
+      this.drawerAnimTimer = -1
+    }
+  }
+
+  private loadUnreadCount(): void {
+    NotificationService.getUnreadCount().then((c: number) => {
+      AppStorage.setOrCreate(AppStorageKeys.NOTIFICATION_UNREAD_COUNT, c)
+    }).catch(() => {})
+  }
+
+  private unreadBadgeText(): string {
+    return unreadBadgeLabel(this.unreadCount)
+  }
+
+  private goNotifications(): void {
+    if (this.showNotificationsDrawer && this.drawerOpen) {
+      this.closeNotificationsDrawer()
+      return
+    }
+    this.openNotificationsDrawer()
+  }
+
+  private drawerHiddenY(): number {
+    if (this.drawerPanelH > 0) {
+      return this.drawerPanelH
+    }
+    return DRAWER_HIDE_FALLBACK
+  }
+
+  private openNotificationsDrawer(): void {
+    if (this.drawerAnimTimer !== -1) {
+      clearTimeout(this.drawerAnimTimer)
+      this.drawerAnimTimer = -1
+    }
+    this.drawerGen += 1
+    const gen = this.drawerGen
+    this.drawerOffsetY = -this.drawerHiddenY()
+    this.drawerMaskOpacity = 0
+    this.drawerOpen = false
+    this.showNotificationsDrawer = true
+    this.drawerAnimTimer = setTimeout(() => {
+      this.drawerAnimTimer = -1
+      if (gen !== this.drawerGen) {
+        return
+      }
+      this.getUIContext().animateTo({
+        duration: MotionTokens.drawerEnterDuration,
+        curve: Curve.EaseOut
+      }, () => {
+        if (gen !== this.drawerGen) {
+          return
+        }
+        this.drawerOffsetY = 0
+        this.drawerMaskOpacity = 1
+        this.drawerOpen = true
+      })
+    }, MotionHelper.LIST_REVEAL_FRAME_MS)
+  }
+
+  private closeNotificationsDrawer(): void {
+    if (!this.showNotificationsDrawer) {
+      return
+    }
+    this.drawerGen += 1
+    const gen = this.drawerGen
+    this.drawerOpen = false
+    this.getUIContext().animateTo({
+      duration: MotionTokens.sheetDuration,
+      curve: Curve.EaseIn,
+      onFinish: () => {
+        if (gen === this.drawerGen) {
+          this.showNotificationsDrawer = false
+        }
+      }
+    }, () => {
+      this.drawerOffsetY = -this.drawerHiddenY()
+      this.drawerMaskOpacity = 0
+    })
   }
 
   private loadInitialQuote(): void {
@@ -261,6 +360,7 @@ export struct DashboardTab {
     }
     this.lastHandledRefreshToken = this.listRefreshToken
     this.loadData()
+    this.loadUnreadCount()
   }
 
   private onLuxChange(): void {
@@ -604,7 +704,7 @@ export struct DashboardTab {
         .alignItems(HorizontalAlign.Start)
         .padding({
           left: this.theme.pageHorizontalPadding,
-          right: this.theme.pageHorizontalPadding,
+          right: this.theme.spaceSm,
           top: 10 + this.topSafe,
           bottom: 8
         })
@@ -616,6 +716,10 @@ export struct DashboardTab {
         })
       }
       .width('100%')
+
+      if (this.showNotificationsDrawer) {
+        this.notificationsDrawerOverlayBuilder()
+      }
     }
     .width('100%')
     .height('100%')
@@ -684,9 +788,103 @@ export struct DashboardTab {
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
       .justifyContent(FlexAlign.Start)
+
+      Stack({ alignContent: Alignment.TopEnd }) {
+        Row() {
+          Image($r('app.media.ic_bell'))
+            .width(22)
+            .height(22)
+            .fillColor(this.showNotificationsDrawer ? this.theme.text : this.theme.text2)
+            .objectFit(ImageFit.Contain)
+        }
+        .width('100%')
+        .height('100%')
+        .justifyContent(FlexAlign.Center)
+        .alignItems(VerticalAlign.Center)
+
+        if (this.unreadBadgeText().length > 0) {
+          Text(this.unreadBadgeText())
+            .fontSize(TypeScale.captionSm)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(this.theme.dangerForeground())
+            .backgroundColor(this.theme.red)
+            .borderRadius(this.theme.radiusPill)
+            .constraintSize({ minWidth: 16, minHeight: 16 })
+            .padding({ left: 5, right: 5 })
+            .textAlign(TextAlign.Center)
+            .margin({ top: 1, right: 1 })
+        }
+      }
+      .width(52)
+      .height(40)
+      .margin({ left: this.theme.spaceXs })
+      .flexShrink(0)
+      .scale({
+        x: this.bellPressed ? MotionTokens.pressScaleLight : 1,
+        y: this.bellPressed ? MotionTokens.pressScaleLight : 1
+      })
+      .animation({ duration: MotionTokens.pressDuration, curve: Curve.EaseOut })
+      .onTouch((e: TouchEvent) => {
+        if (e.type === TouchType.Down) {
+          this.bellPressed = true
+        } else if (e.type === TouchType.Up || e.type === TouchType.Cancel) {
+          this.bellPressed = false
+        }
+      })
+      .onClick(() => this.goNotifications())
     }
     .width('100%')
     .alignItems(VerticalAlign.Center)
+  }
+
+  @Builder
+  notificationsDrawerOverlayBuilder() {
+    Stack({ alignContent: Alignment.TopStart }) {
+      Column()
+        .width('100%')
+        .height('100%')
+        .backgroundColor(this.theme.sheetMaskColor())
+        .opacity(this.drawerMaskOpacity)
+        .onClick(() => this.closeNotificationsDrawer())
+
+      Column() {
+        NotificationsInbox({
+          theme: this.theme,
+          showSheetChrome: true,
+          dockTop: true,
+          emptyIcon: $r('app.media.ic_bell'),
+          onClose: () => {
+            this.closeNotificationsDrawer()
+          },
+          onNavigate: () => {
+            this.closeNotificationsDrawer()
+          }
+        })
+      }
+      .width('100%')
+      .height('80%')
+      .padding({ top: this.topSafe })
+      .backgroundColor(this.theme.sheetBackground())
+      .borderRadius({
+        bottomLeft: this.theme.sheetRadius,
+        bottomRight: this.theme.sheetRadius
+      })
+      .border({
+        width: { bottom: 0.5, left: 0, right: 0, top: 0 },
+        color: this.theme.sheetEdgeColor()
+      })
+      .shadow(this.theme.sheetShadowOptions())
+      .clip(true)
+      .translate({ y: this.drawerOffsetY })
+      .onAreaChange((_oldArea: Area, newArea: Area) => {
+        const measured = Number(newArea.height)
+        if (measured > 0 && measured !== this.drawerPanelH) {
+          this.drawerPanelH = measured
+        }
+      })
+    }
+    .width('100%')
+    .height('100%')
   }
 
   /**
@@ -1128,8 +1326,8 @@ export struct DashboardTab {
                 .padding({
                   left: this.theme.spaceXs,
                   right: this.theme.spaceXs,
-                  top: this.theme.spaceXxs / 2,
-                  bottom: this.theme.spaceXxs / 2
+                  top: 6,
+                  bottom: 6
                 })
                 .backgroundColor(this.theme.aiAccentSoft)
                 .borderRadius(this.theme.radiusSm)
@@ -1147,8 +1345,8 @@ export struct DashboardTab {
           .width('100%')
           .alignItems(VerticalAlign.Center)
           .padding({
-            left: this.theme.spaceSm,
-            right: this.theme.spaceSm,
+            left: this.theme.spaceXs,
+            right: this.theme.spaceXs,
             top: 10,
             bottom: 10
           })

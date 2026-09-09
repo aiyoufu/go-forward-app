@@ -243,65 +243,17 @@ export class IconPickerService {
   }
 
   /**
-   * 把 $rawfile: 内置 PNG 落地为 file://<filesDir>/<prefix><key>.png。
-   * 与下载缓存同一目录、同前缀规则，云端上传、跨设备同步按既有 file:// 链路处理。
+   * 内置 rawfile 图标（曾用于金融机构预设）已于 2026-09 从仓库移除。
+   * 该函数保留为「旧数据识别钩子」：数据库中存留的 `$rawfile:credit_logos/*.png`
+   * 在重新解析时会得到空串，触发上游 onError，UI 退到品牌色 + 文字字标。
+   * 不再读取 / 写入文件，避免对不再打包的资源产生 noop 副作用。
    */
-  static async resolveRawfileIcon(context: common.UIAbilityContext, url: string,
-    prefix: string = 'icon_net_'): Promise<string> {
+  static async resolveRawfileIcon(_context: common.UIAbilityContext, url: string,
+    _prefix: string = 'icon_net_'): Promise<string> {
     if (!url || !IconPickerService.isRawfilePath(url)) {
       return ''
     }
-    if (!context || !context.filesDir) {
-      return ''
-    }
-    const cacheKey = prefix + url
-    const cached = IconPickerService.pathCache.get(cacheKey)
-    if (cached !== undefined && cached.length > 0 && IconPickerService.fileExists(cached)) {
-      return cached
-    }
-    const relPath = url.substring('$rawfile:'.length)
-    if (relPath.length === 0) {
-      return ''
-    }
-    let bytes: ArrayBuffer
-    try {
-      const rm = context.resourceManager
-      if (rm === undefined || rm === null) {
-        return ''
-      }
-      // getRawFileContent 返回 Uint8Array；.buffer 在 lib 里是 ArrayBufferLike（结构化类型），
-      // ArkTS 严格模式拒绝隐式赋给 ArrayBuffer。显式 copy 一份新的 ArrayBuffer 满足下游签名。
-      const u8: Uint8Array = await rm.getRawFileContent(relPath)
-      const buf = new ArrayBuffer(u8.byteLength)
-      new Uint8Array(buf).set(u8)
-      bytes = buf
-    } catch (err) {
-      Logger.error('IconPickerService', 'resolveRawfileIcon read failed: ' + JSON.stringify(err))
-      return ''
-    }
-    if (bytes.byteLength < 32) {
-      return ''
-    }
-    if (!IconPickerService.isImageBytes(bytes)) {
-      return ''
-    }
-    const ext = IconPickerService.guessExt(url, 'image/png')
-    const destPath = context.filesDir + '/' +
-      IconPickerService.cacheBaseName(prefix, url, 0) + '.' + ext
-    try {
-      const destFile = fileIo.openSync(destPath, fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC)
-      try {
-        fileIo.writeSync(destFile.fd, bytes)
-      } finally {
-        fileIo.closeSync(destFile)
-      }
-    } catch (err) {
-      Logger.error('IconPickerService', 'resolveRawfileIcon write failed: ' + JSON.stringify(err))
-      return ''
-    }
-    const local = 'file://' + destPath
-    IconPickerService.pathCache.set(cacheKey, local)
-    return local
+    return ''
   }
 
   /**
@@ -449,8 +401,8 @@ export class IconPickerService {
   /**
    * 把任意图标地址解析为本地可显示路径。
    * file:// 原样返回；http(s) 下载到 filesDir 后返回 file://；失败返回空串。
-   * $rawfile: 内置图（信贷平台 logo）首次复制到 filesDir，返回 file://，
-   * 保证下游 icon_url 走的是 file:// 标准链路（云上传、跨设备同步都按既有规则处理）。
+   * $rawfile: 旧数据（曾用于金融机构预设）不再解析：直接原样返回，
+   * 上游 Image 加载失败时 onError 会触发，UI 退到品牌色 + 文字字标。
    * exact=true：直连图资源（CDN 直链），只取 URL 本身，不做域名 favicon 兜底；
    * prefix：缓存文件前缀，区分不同数据源（卡面 card_face_ / app 图标 icon_net_）。
    */
@@ -462,9 +414,6 @@ export class IconPickerService {
       return ''
     }
     const trimmed = url.trim()
-    if (IconPickerService.isRawfilePath(trimmed)) {
-      return await IconPickerService.resolveRawfileIcon(context, trimmed, prefix)
-    }
     if (!IconPickerService.isRemoteUrl(trimmed)) {
       return trimmed
     }

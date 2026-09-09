@@ -45,6 +45,22 @@ export { FormLogoHeader } from './src/main/ets/components/FormLogoHeader'
 export { LegalDocSheet } from './src/main/ets/components/LegalDocSheet'
 export { LogoImage } from './src/main/ets/components/LogoImage'
 export { MiniBarGuideOverlay } from './src/main/ets/components/MiniBarGuideOverlay'
+export {
+  NotificationsInbox,
+  NotificationNavTarget,
+  NotificationGroup,
+  InboxRow,
+  flattenNotificationGroups,
+  notificationTypeLabel,
+  notificationTypeRole,
+  notificationNavTarget,
+  isNotificationActionable,
+  notificationDayGroup,
+  notificationDayLabel,
+  buildNotificationGroups,
+  notificationInboxSubtitle,
+  unreadBadgeLabel
+} from './src/main/ets/components/NotificationsInbox'
 export { PressureChart, recomputeMax, currentMonthKey, isCurrentMonth, isFutureMonth, barHeightVp, monthLabel, useWanUnit, moneyLabel, moneySign, moneyBody, PressureTrendTag, pressureTrendTag, nextMonthDueHint } from './src/main/ets/components/PressureChart'
 export { RepaySheetView } from './src/main/ets/components/RepaySheetView'
 export { SegmentProgressBar, filledCount, rebuildIndices } from './src/main/ets/components/SegmentProgressBar'
@@ -54,7 +70,7 @@ export { SettingsVersionSheet } from './src/main/ets/components/SettingsVersionS
 export { SheetDialogButton, SheetDialogConfig, SheetDatePickerConfig, CalendarDayCell, SheetHeader, SheetDialogFooter, SheetDialogView, SheetDatePickerView, getOrderedButtons, isConfirmButtonPair, sheetBottomInset } from './src/main/ets/components/SheetDialog'
 export { SkeletonCard } from './src/main/ets/components/SkeletonCard'
 export { SkeletonList } from './src/main/ets/components/SkeletonList'
-export { Sparkline, trendDir, tagRoleForSparkline, SparklineTrendTag, remainingDebtTrendTag, formatYuanGrouped, strokeColor, fillColorTop, fillColorBottom, haloColor } from './src/main/ets/components/Sparkline'
+export { Sparkline, trendDir, tagRoleForSparkline, SparklineTrendTag, remainingDebtTrendTag, formatYuanGrouped, formatFenWithDecimal, strokeColor, fillColorTop, fillColorBottom, haloColor } from './src/main/ets/components/Sparkline'
 export { ReceiptSlipOverlay, ReceiptSlipModel } from './src/main/ets/components/ReceiptSlipOverlay'
 export { ReceiptShareKit } from './src/main/ets/components/ReceiptShareKit'
 export {

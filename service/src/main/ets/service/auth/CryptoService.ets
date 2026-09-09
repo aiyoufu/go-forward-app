@@ -7,10 +7,10 @@ export class CryptoService {
   private static readonly PBKDF2_KEY_SIZE: number = 32
   private static readonly PBKDF2_PREFIX: string = 'pbkdf2'
 
-  // ───── 字段级加密（与 go-forward-desktop lib/crypto.ts 逐字节互通）─────
-  /** 密文前缀，与 go-forward-desktop ENC_PREFIX 一致 */
+  // ───── 字段级加密（enc:v1 格式，AES-256-GCM）─────
+  /** 密文前缀 */
   static readonly ENC_PREFIX: string = 'enc:v1:'
-  /** KEK 派生迭代数，与 go-forward-desktop PBKDF2_ITERATIONS 一致（勿改，改则两端不互通） */
+  /** KEK 派生迭代数（勿改，改则旧客户端解不开既有数据） */
   private static readonly KEK_ITERATIONS: number = 600000
   /** AES-GCM IV 长度：WebCrypto 默认 96bit */
   private static readonly GCM_IV_LEN: number = 12

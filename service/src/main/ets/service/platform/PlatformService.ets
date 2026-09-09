@@ -88,57 +88,6 @@ export class PlatformService {
   private static readonly DEBT_TYPE_CONFIG: Map<string, CategoryInfo> =
     PlatformService.initDebtTypeConfig()
 
-  /**
-   * 内置信贷平台 logo（rawfile/credit_logos/ 下的 PNG，离线优先命中）。
-   * key 必须与 PLATFORM_PRESETS 里的 key 一致；搜「花呗」等场景，搜索面板
-   * 优先返回本地图，无网/慢网/平台 logo 缺失都能给出正确视觉。
-   */
-  private static readonly CREDIT_LOGO_FILES: Map<string, string> =
-    PlatformService.initCreditLogoFiles()
-
-  private static initCreditLogoFiles(): Map<string, string> {
-    const map = new Map<string, string>()
-    map.set('花呗', 'huabei.png')
-    map.set('花呗分期', 'huabei.png')
-    map.set('借呗', 'alipay.png')
-    map.set('花呗借钱', 'huabei.png')
-    map.set('微粒贷', 'wechat.png')
-    map.set('微信分期', 'wechat.png')
-    map.set('京东金条', 'jd_finance.png')
-    map.set('京东白条', 'jd_finance.png')
-    map.set('度小满', 'duxiaoman.png')
-    map.set('招联好期贷', 'zhaolian_hqd.png')
-    map.set('美团月付', 'meituan.png')
-    map.set('美团', 'meituan.png')
-    map.set('抖音月付', 'douyin.png')
-    map.set('抖音', 'douyin.png')
-    map.set('分期乐', 'fenqile.png')
-    map.set('还呗', 'haibei.png')
-    map.set('奇富借条', 'qifu_jietiao.png')
-    map.set('360借条', 'qifu_jietiao.png')
-    map.set('有钱花', 'youqianhua.png')
-    map.set('安逸花', 'anyihua.png')
-    map.set('招联金融', 'zhaolian.png')
-    map.set('放心借', 'douyin.png')
-    map.set('滴水贷', 'didi_finance.png')
-    map.set('滴滴金融', 'didi_finance.png')
-    map.set('唯品花', 'vipshop.png')
-    map.set('任性贷', 'xingtu_finance.png')
-    map.set('星图金融', 'xingtu_finance.png')
-    map.set('天星金融', 'tianxing_finance.png')
-    map.set('小米金融', 'tianxing_finance.png')
-    map.set('平安普惠', 'pingan_rongyi.png')
-    map.set('平安融易', 'pingan_rongyi.png')
-    map.set('中邮钱包', 'zhongyou_wallet.png')
-    map.set('中邮消费金融', 'zhongyou_wallet.png')
-    map.set('中银消费金融', 'bocfc.png')
-    map.set('中银消费', 'bocfc.png')
-    map.set('拿去花', 'ctrip_finance.png')
-    map.set('携程金融', 'ctrip_finance.png')
-    map.set('拍拍贷', 'ppdai.png')
-    return map
-  }
-
   private static readonly DEFAULT_PRESET: PlatformPreset =
     new PlatformPreset('' + ColorTokens.DEFAULT_FALLBACK, 1800, 'other')
 
@@ -292,45 +241,14 @@ export class PlatformService {
   }
 
   /**
-   * 内置信贷平台 logo 的 rawfile 路径（$rawfile:credit_logos/<file>.png）。
-   * 空串表示「无内置图，走网络」。Image 组件直接吃 $rawfile: scheme；
-   * 选定时由 IconPickerService 复制到 filesDir 变成 file://，走常规上云链路。
-   */
-  static getLocalCreditLogoUrl(name: string): string {
-    if (!name || name.length === 0) {
-      return ''
-    }
-    const exact = PlatformService.CREDIT_LOGO_FILES.get(name)
-    if (exact !== undefined) {
-      return '$rawfile:credit_logos/' + exact
-    }
-    // 优先最长 key 命中：避免「花呗微粒贷」错配到 alipay.png
-    let bestKey = ''
-    const keys = PlatformService.CREDIT_LOGO_FILES.keys()
-    for (const key of keys) {
-      if (name.includes(key) || key.includes(name)) {
-        if (key.length > bestKey.length) {
-          bestKey = key
-        }
-      }
-    }
-    if (bestKey.length > 0) {
-      return '$rawfile:credit_logos/' + (PlatformService.CREDIT_LOGO_FILES.get(bestKey) as string)
-    }
-    return ''
-  }
-
-  /**
-   * 根据平台/账户名称解析可加载的 logo URL（优先本地内置图 → Clearbit / Google Favicon）
-   * UI 侧需配合 onError 回退到 getBrandVisual 字标
+   * 根据平台/账户名称解析可加载的 logo URL（按预设域名走公开 favicon 源）。
+   * UI 侧需配合 onError 回退到 getBrandVisual 字标。
+   * 注意：本仓库不内置任何金融机构图标，name 仅作为「预设域名」匹配使用；
+   * 若名称不在任何预设中、或预设无域名，则返回空串，让 UI 走字标占位。
    */
   static getLogoUrlForName(name: string): string {
     if (!name || name.length === 0) {
       return ''
-    }
-    const local = PlatformService.getLocalCreditLogoUrl(name)
-    if (local.length > 0) {
-      return local
     }
     const preset = PlatformService.getPlatformPreset(name)
     if (preset.domain && preset.domain.length > 0) {

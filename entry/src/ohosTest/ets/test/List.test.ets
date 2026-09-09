@@ -46,6 +46,7 @@ import indexUITest from './pages/Index.ui.test'
 import onboardingPageUITest from './pages/OnboardingPage.ui.test'
 import profilePageUITest from './pages/ProfilePage.ui.test'
 import secondaryDestinationsUITest from './pages/SecondaryDestinations.ui.test'
+import notificationsPageUITest from './pages/NotificationsPage.ui.test'
 
 export default function testsuite() {
   // Widget UI 测试
@@ -107,4 +108,5 @@ export default function testsuite() {
   onboardingPageUITest()
   profilePageUITest()
   secondaryDestinationsUITest()
+  notificationsPageUITest()
 }

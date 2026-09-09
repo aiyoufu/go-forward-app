@@ -31,6 +31,7 @@ import iconPickerServiceTest from './L4_aggregators/IconPickerService.test'
 import iconCloudServiceTest from './L0_pure/IconCloudService.test'
 import debtReceiptTest from './L0_pure/DebtReceipt.test'
 import billParsersTest from './L0_pure/BillParsers.test'
+import parsePromptsTest from './L0_pure/ParsePrompts.test'
 import ceremonyRulesTest from './L0_pure/CeremonyRules.test'
 import pressureEvaluatorTest from './L0_pure/PressureEvaluator.test'
 import aILiveDraftTest from './L0_pure/AILiveDraft.test'
@@ -74,6 +75,7 @@ export default function testsuite() {
   subscriptionReceiptTest()
   debtReceiptTest()
   billParsersTest()
+  parsePromptsTest()
   ceremonyRulesTest()
   pressureEvaluatorTest()
   syncHelpersTest()

@@ -1,6 +1,6 @@
 # 第三方素材与声明
 
-本文件说明「向前」仓库内**随代码分发的第三方素材**，以及 App **运行时向第三方拉取的图源/数据源**。
+本文件说明「向前」仓库内**随代码分发的第三方素材**（如有），以及 App **运行时向第三方拉取的图源/数据源**。
 
 一句话立场：本项目是个人记账工具，不隶属于、不受赞助于、不背书于任何金融机构；所有机构名称与图标仅用于帮助用户识别自己的账户。
 
@@ -8,45 +8,19 @@
 
 ## 一、内置图标（随仓库分发）
 
-路径：`entry/src/main/resources/rawfile/credit_logos/`，共 23 个 PNG。
+**当前状态：本节对应内容已从仓库整体移除。**
 
-| 文件 | 对应机构/产品 |
-|------|---------------|
-| `alipay.png` | 支付宝（蚂蚁集团） |
-| `huabei.png` | 花呗 / 借呗（蚂蚁集团） |
-| `wechat.png` | 微信 / 微粒贷（腾讯、微众银行） |
-| `jd_finance.png` | 京东金融 / 金条 / 白条（京东科技） |
-| `meituan.png` | 美团 / 美团月付（美团） |
-| `douyin.png` | 抖音 / 抖音月付 / 放心借（字节跳动） |
-| `duxiaoman.png` | 度小满 |
-| `zhaolian.png` | 招联金融 |
-| `zhaolian_hqd.png` | 招联好期贷 |
-| `pingan_rongyi.png` | 平安普惠 / 平安融易（中国平安） |
-| `bocfc.png` | 中银消费金融（中国银行） |
-| `zhongyou_wallet.png` | 中邮钱包 / 中邮消费金融 |
-| `ctrip_finance.png` | 携程金融 / 拿去花（携程） |
-| `didi_finance.png` | 滴滴金融 / 滴水贷（滴滴） |
-| `tianxing_finance.png` | 天星金融 / 小米金融（小米） |
-| `xingtu_finance.png` | 星途金融 / 任性贷 |
-| `vipshop.png` | 唯品花（唯品会） |
-| `fenqile.png` | 分期乐（乐信） |
-| `haibei.png` | 还呗 |
-| `ppdai.png` | 拍拍贷（信也科技） |
-| `qifu_jietiao.png` | 奇富借条 / 360 借条（奇富科技） |
-| `youqianhua.png` | 有钱花（度小满） |
-| `anyihua.png` | 安逸花（马上消费金融） |
+2026-09 之前，本仓库曾在 `entry/src/main/resources/rawfile/credit_logos/` 下打包 23 个金融机构 PNG 图标，用于在离线场景下「先出本地图、慢网也能识别」。基于以下考量，该目录与配套的 `PlatformService.CREDIT_LOGO_FILES` / `getLocalCreditLogoUrl()` / `IconPickerService.resolveRawfileIcon()` 已整体清理：
 
-**声明：**
-
-1. 上述图标与名称是各自权利人的**商标/品牌标识**，版权归原作者或对应机构所有。本仓库不主张任何权利。
-2. 使用目的是**指示性使用（nominative use）**：让用户在录入自己的负债/信用账户时，能通过熟悉的图标认出是哪家机构。不作装饰、不暗示合作。
-3. 本项目与上述任何机构**均无关联、无合作、无背书**。App 内图标选择面板底部常驻同一提示。
-4. **权利人异议即删除**：若您认为本仓库收录了您拥有权利的图标并希望移除，请按文末「五、联系方式」告知具体文件名，我们会在无不正当拖延内删除，并从后续版本中移除。删除不影响 App 可用性——见下方「删除后的降级行为」。
-5. 本仓库的开源许可证（见 `LICENSE`）覆盖**本项目自有代码**，不覆盖上述第三方图标；这些图标不因本仓库采用开源许可证而获得再许可。
+- 权利瑕疵只能在仓库层消除，不能用一段声明抵消——一旦收录就已经构成了可被主张的「未经授权的复制/分发」。
+- 离线命中只解决弱网识别问题，运行时已有 favicon 兜底（见第二节），删除后体验损失很小。
+- 权利人若发现新的误收录，按本文件「五、联系方式」告知会在无不正当拖延内处理。
 
 **删除后的降级行为**（因此下架成本很低，不必担心「删了 App 就跑不起来」）：
 
-图标路径集中在 `service/src/main/ets/service/platform/PlatformService.ets` 的 `CREDIT_LOGO_FILES` 一张表内，业务代码不直接引用文件名。删掉某个 PNG 或整张表后，`getLogoUrlForName()` 会依次回退到网络图标源，最终回退到 `getBrandVisual()` 的**品牌色 + 文字字标**，UI 不会崩、不会留白框。
+- 名称命中的预设（花呗、京东白条、Netflix …）走 `PlatformService.getLogoUrlForName()` 拼接 `https://statics.dnspod.cn/proxy_favicon/_/favicon?domain=<preset.domain>`，由运行时按域名拉取站点 favicon。
+- 任何名称都不再指向 `$rawfile:credit_logos/*.png`；旧数据库行重新解析时，Image 加载会失败并触发 `onError`，UI 退到 `getBrandVisual()` 的**品牌色 + 文字字标**，不会崩、不会留白框。
+- 用户已存下的相册图 / 已上云的卡面图与本次清理无关，渲染链路未变。
 
 ---
 
@@ -61,8 +35,10 @@ App 运行时按需向下列服务发起网络请求，图片/数据**不打包�
 | DuckDuckGo Icons<br>`icons.duckduckgo.com` | 域名图标兜底 | `IconPickerService.ets` | 第三方公开图标服务 |
 | `favicon.im` | 域名 favicon 兜底 | `IconPickerService.ets` | 第三方公开服务 |
 | Google Favicon<br>`www.google.com/s2/favicons` | 域名 favicon 兜底 | `IconPickerService.ets` | Google 公开服务 |
-| DNSPod HTTPDNS<br>`statics.dnspod.cn` | HTTP DNS 解析（改善弱网连通性） | `IconPickerService.ets`、`PlatformService.ets` | 腾讯公开服务 |
+| DNSPod HTTPDNS<br>`statics.dnspod.cn` | 域名 favicon + HTTP DNS 解析（改善弱网连通性） | `IconPickerService.ets`、`PlatformService.ets` | 腾讯公开服务 |
 | `open.er-api.com` | 汇率换算 | `ExchangeRateService.ets` | 第三方公开接口 |
+
+**声明**：本项目与上述服务的运营方**均无关联、无合作、无背书**。App 内图标选择面板底部常驻同一提示。这些数据源拉到的图标若属金融机构，则只用于用户识别自己的账户，不构成与该机构的合作或推荐。运行时也允许用户从相册自选图覆盖。
 
 ### 已移除的数据源：银行卡卡面图（HarukaKinen/Cardentify）
 
@@ -78,7 +54,6 @@ App 运行时按需向下列服务发起网络请求，图片/数据**不打包�
 
 **删除后的行为**：
 
-- 图标选择面板的信用账户目录只检索**内置信贷平台图标**（第一节那 23 个 PNG），并保留「从相册选择新图」。
 - 用户**已经存下的卡面照旧显示**：本地缓存（`card_face_` 前缀）、用户自己 Supabase 桶里的对象、相册自选图三条链路都与上游存活状态无关，`IconPickerService.isCardFaceUrl()` 仍负责按前缀区分横卡面与圆标。
 - 卡面加载失败时 `LogoImage` 清空图源并回调 `onError`；列表卡片与详情面板传了该回调，会退到品牌色底 + 文字字标，不会崩、不会留白框。
 
@@ -105,9 +80,12 @@ App 运行时按需向下列服务发起网络请求，图片/数据**不打包�
 
 ## 五、联系方式（权利人异议通道）
 
-本文件多处承诺「权利人异议即删除」。该承诺的落点是这里：
+本仓库不内置第三方机构图标，运行时图源（第二节）的权利问题由各服务运营方与各权利人自行约定，本项目仅作为客户端调用方。但若你发现：
+
+- 仓库里出现了应当不属于本项目自有的素材（包括但不限于图片、音频、字体、文本片段）；
+- App 内出现与本项目无关却可能被误认为由本项目背书的内容。
+
+请按下列方式告知具体位置与主张权利，我们会在无不正当拖延内处理，并在下一个版本中移除相应素材。删除不影响 App 可用性——降级路径见第一节「删除后的降级行为」。
 
 - **首选**：在仓库开 Issue，说明具体文件名或数据源、你主张的权利、以及期望的处理方式。
 - **不愿公开**：用 GitHub 的 Report a vulnerability（私密通道，见 [`SECURITY.md`](SECURITY.md)），或写信到 naiyoufu@gmail.com。
-
-收到后我们会在无不正当拖延内处理，并在下一个版本中移除相应素材。删除不影响 App 可用性——降级路径见第一节「删除后的降级行为」。

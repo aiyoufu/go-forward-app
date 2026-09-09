@@ -308,8 +308,6 @@ export struct ReceiptSlipOverlay {
           Image($r('app.media.ic_app_logo'))
             .width(this.sz(28))
             .height(this.sz(28))
-            .borderRadius(this.theme.radiusSm)
-            .clip(true)
             .objectFit(ImageFit.Cover)
             .backgroundColor(this.ink)
             .flexShrink(0)

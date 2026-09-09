@@ -169,6 +169,12 @@ export class SettingsService {
     await SettingsService.saveSettings(settings)
   }
 
+  static async updateHandAwareness(enabled: boolean): Promise<void> {
+    const settings = await SettingsService.getSettings(UserService.getCurrentUserId())
+    settings.hand_awareness_enabled = enabled
+    await SettingsService.saveSettings(settings)
+  }
+
   static async updateThemeMode(mode: ThemeMode): Promise<void> {
     const settings = await SettingsService.getSettings(UserService.getCurrentUserId())
     settings.theme_mode = mode
@@ -241,6 +247,7 @@ export class SettingsService {
     s.recovery_backup_encrypted = src.recovery_backup_encrypted
     s.light_sense_enabled = src.light_sense_enabled
     s.eye_care_enabled = src.eye_care_enabled
+    s.hand_awareness_enabled = src.hand_awareness_enabled
     s.theme_mode = src.theme_mode
     s.cloud_sync_enabled = src.cloud_sync_enabled
     s.monthly_budget_limit = src.monthly_budget_limit
@@ -316,6 +323,7 @@ export class SettingsService {
     // 默认关：与 createDefaultSettings 一致；勿用 ?? 1，否则缺列/脏数据会强制开光感并盖掉「深色」偏好
     s.light_sense_enabled = DbService.intToBool(src['light_sense_enabled'] as number ?? 0)
     s.eye_care_enabled = DbService.intToBool(src['eye_care_enabled'] as number)
+    s.hand_awareness_enabled = DbService.intToBool(src['hand_awareness_enabled'] as number ?? 1)
     const mode = '' + (src['theme_mode'] ?? 'system')
     s.theme_mode = (mode === 'light' || mode === 'dark' || mode === 'system') ? mode : 'system'
     s.cloud_sync_enabled = DbService.intToBool(src['cloud_sync_enabled'] as number ?? 1)
@@ -355,6 +363,7 @@ export class SettingsService {
     obj['recovery_backup_encrypted'] = settings.recovery_backup_encrypted
     obj['light_sense_enabled'] = DbService.boolToInt(settings.light_sense_enabled)
     obj['eye_care_enabled'] = DbService.boolToInt(settings.eye_care_enabled)
+    obj['hand_awareness_enabled'] = DbService.boolToInt(settings.hand_awareness_enabled)
     obj['theme_mode'] = settings.theme_mode
     obj['cloud_sync_enabled'] = DbService.boolToInt(settings.cloud_sync_enabled)
     obj['monthly_budget_limit'] = settings.monthly_budget_limit

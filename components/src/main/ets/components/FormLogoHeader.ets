@@ -89,11 +89,8 @@ export struct FormLogoHeader {
               theme: this.theme,
               url: this.displayUrl,
               logoSize: 54,
-              inset: this.pickerCatalog === 'card' ? 0 : 5,
-              radius: this.pickerCatalog === 'card' ? MotionTokens.cardFaceRadius : MotionTokens.formLogoRadius,
-              fit: this.pickerCatalog === 'card' ? ImageFit.Contain : ImageFit.Cover,
-              ratio: this.pickerCatalog === 'card' ? MotionTokens.cardFaceRatio : 1,
-              framed: this.pickerCatalog !== 'card',
+              inset: 5,
+              radius: MotionTokens.formLogoRadius,
               remoteExact: this.pickerCatalog === 'card',
               remotePrefix: this.pickerCatalog === 'card' ? 'card_face_' : 'icon_net_',
               remoteReadMs: 8000,
@@ -116,9 +113,9 @@ export struct FormLogoHeader {
                   .fillColor(this.theme.onColorBlock())
               }
             }
-            .width(this.pickerCatalog === 'card' ? 54 * MotionTokens.cardFaceRatio : 54)
+            .width(54)
             .height(54)
-            .borderRadius(this.pickerCatalog === 'card' ? MotionTokens.cardFaceRadius : MotionTokens.formLogoRadius)
+            .borderRadius(MotionTokens.formLogoRadius)
             .backgroundColor(this.displayName.length > 0 ? this.markColor : '#2F3336')
             .justifyContent(FlexAlign.Center)
             .alignItems(HorizontalAlign.Center)
@@ -142,7 +139,7 @@ export struct FormLogoHeader {
             .border({ width: 1.5, color: this.theme.background })
           }
         }
-        .width(this.pickerCatalog === 'card' ? 54 * MotionTokens.cardFaceRatio : 54)
+        .width(54)
         .height(54)
         .onClick(() => {
           this.openIconPicker()

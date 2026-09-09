@@ -741,21 +741,26 @@ export struct DebtsTab {
     this.repayDebt(debt)
   }
 
-  /** 详情弹窗图标：对齐 DebtCard（关联账户卡面优先 → 负债自定义 → 同名账户） */
+  /** 详情弹窗图标：关联账户时锚定账户本身；未关联时按平台名匹配同名账户；最后才用负债自定义 */
   private async resolveDetailIcon(debt: Debt): Promise<void> {
     let url = ''
     let cardFace = false
-    if (debt.credit_account_id && debt.credit_account_id.length > 0) {
+    const linkedId = debt.credit_account_id
+    if (linkedId && linkedId.length > 0) {
       try {
-        const acc: CreditAccount | null = await CreditAccountService.getCreditAccountById(debt.credit_account_id)
-        if (acc && acc.icon_url && acc.icon_url.length > 0) {
-          url = acc.icon_url
-          cardFace = true
+        const acc: CreditAccount | null = await CreditAccountService.getCreditAccountById(linkedId)
+        if (acc) {
+          if (acc.icon_url && acc.icon_url.length > 0) {
+            url = acc.icon_url
+            cardFace = true
+          } else {
+            url = PlatformService.getLogoUrlForName(acc.name)
+          }
         }
       } catch (_err) {
       }
     }
-    if (url.length === 0) {
+    if (url.length === 0 && (!linkedId || linkedId.length === 0)) {
       const pn = (debt.platform || '').toLowerCase()
       const accounts = LocalDataStore.getAccounts()
       if (accounts !== null) {
@@ -781,7 +786,6 @@ export struct DebtsTab {
       const next = this.buildDebtDetail(debt)
       next.iconUrl = url
       next.cardFace = cardFace
-      next.iconFit = cardFace ? ImageFit.Contain : ImageFit.Cover
       this.detailConfig = next
     }
   }

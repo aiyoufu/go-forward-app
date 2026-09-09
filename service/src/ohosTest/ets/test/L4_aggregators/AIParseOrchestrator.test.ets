@@ -123,8 +123,8 @@ export default function aiParseOrchestratorTest() {
     it('MSG_TEXT_PARSE_REQUIRED非空', 0, () => {
       expect(AIParseOrchestrator.MSG_TEXT_PARSE_REQUIRED.length > 0).assertTrue()
     })
-    it('MSG_VISION_REQUIRED非空', 0, () => {
-      expect(AIParseOrchestrator.MSG_VISION_REQUIRED.length > 0).assertTrue()
+    it('MSG_IMAGE_KEY_REQUIRED非空', 0, () => {
+      expect(AIParseOrchestrator.MSG_IMAGE_KEY_REQUIRED.length > 0).assertTrue()
     })
     it('MSG_IMAGE_ENCODE_FAIL非空', 0, () => {
       expect(AIParseOrchestrator.MSG_IMAGE_ENCODE_FAIL.length > 0).assertTrue()
@@ -137,9 +137,6 @@ export default function aiParseOrchestratorTest() {
     })
     it('MSG_VISION_TIMEOUT非空', 0, () => {
       expect(AIParseOrchestrator.MSG_VISION_TIMEOUT.length > 0).assertTrue()
-    })
-    it('MSG_OCR_LOCAL_ONLY非空', 0, () => {
-      expect(AIParseOrchestrator.MSG_OCR_LOCAL_ONLY.length > 0).assertTrue()
     })
   })
 

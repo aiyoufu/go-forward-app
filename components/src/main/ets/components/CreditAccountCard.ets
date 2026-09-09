@@ -50,14 +50,6 @@ export struct CreditAccountCard {
     return !this.isLastInGroup
   }
 
-  /** 账户自定义图都是卡面（选图器就是卡）；无自定义才用品牌圆标 */
-  private useCardFace(): boolean {
-    if (this.iconFailed) {
-      return false
-    }
-    return this.account.icon_url !== undefined && this.account.icon_url.length > 0
-  }
-
   private brandVisual(): BrandVisual {
     return PlatformService.getBrandVisual(this.account.name)
   }
@@ -211,13 +203,8 @@ export struct CreditAccountCard {
           LogoImage({
             theme: this.theme,
             url: this.resolveLogoUrl(),
-            logoSize: this.useCardFace() ? MotionTokens.listCardHeight : MotionTokens.listLogoSize,
-            ratio: this.useCardFace() ? MotionTokens.cardFaceRatio : 1,
-            radius: this.useCardFace() ? MotionTokens.listCardRadius : MotionTokens.listLogoRadius,
-            framed: !this.useCardFace(),
-            fit: this.useCardFace() ? ImageFit.Contain : ImageFit.Cover,
-            remoteExact: true,
-            remotePrefix: this.useCardFace() ? 'card_face_' : 'icon_net_',
+            logoSize: MotionTokens.listLogoSize,
+            radius: MotionTokens.listLogoRadius,
             onError: () => {
               this.iconFailed = true
             }

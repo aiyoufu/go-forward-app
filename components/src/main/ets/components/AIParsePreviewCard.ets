@@ -111,10 +111,7 @@ export struct AIParsePreviewCard {
             Image(this.iconUrl)
               .width(MotionTokens.listLogoSize)
               .height(MotionTokens.listLogoSize)
-              .borderRadius(MotionTokens.listLogoRadius)
               .objectFit(ImageFit.Cover)
-              .backgroundColor('#FFFFFF')
-              .border({ width: 0.5, color: this.paperBorder() })
               .onError(() => {
                 this.iconFailed = true
               })
