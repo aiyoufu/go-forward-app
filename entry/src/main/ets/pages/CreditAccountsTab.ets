@@ -3,6 +3,7 @@ import { ThemeColors, ThemeManager, TypeScale, MotionTokens, ArrayDataSource } f
 import { Utils } from 'common'
 import { CreditAccount } from 'common'
 import { CreditAccountService } from 'service'
+import { AccountReceipt } from 'service'
 import { WidgetUpdateService } from 'service'
 import { UserService } from 'service'
 import { LocalDataStore } from 'service'
@@ -21,7 +22,7 @@ import { AppToast } from 'common'
 import { ErrorMessages } from 'common'
 import { ListSelection, runBatchDelete } from './common/ListSelection'
 import { BatchSelectHeader, BatchActionOverlay } from './common/BatchShell'
-import { ListReveal, HeroCounter, listExitTransition, listItemRevealProgress, listItemRevealTranslateY, topBarFadeRatio } from './common/ListReveal'
+import { ListReveal, HeroCounter, listExitTransition, listItemRevealProgress, listItemRevealTranslateY, listItemRevealNoImplicit, scrollListToTopSilent, topBarFadeRatio } from './common/ListReveal'
 import { fetchEffectiveTheme } from './common/ThemeLoader'
 
 @Component
@@ -34,6 +35,8 @@ export struct CreditAccountsTab {
   @StorageProp(AppStorageKeys.TOP_SAFE_HEIGHT) topSafe: number = 0
   /** 防窥脱敏态：系统检测到窥视时额度主数字打码（AntiPeekService 驱动） */
   @StorageProp(AppStorageKeys.ANTI_PEEK_MASKED) antiPeekMasked: boolean = false
+  /** 设置「显示分享」：关则标题栏不渲染分享按钮 */
+  @StorageProp(AppStorageKeys.SHARE_ENABLED) shareEnabled: boolean = true
   @State accountCount: number = 0
   @State totalCreditLimit: number = 0
   @State expiringCount: number = 0
@@ -93,9 +96,9 @@ export struct CreditAccountsTab {
       const alreadyShown = this.accounts.length > 0 && this.revealT >= 1
       if (stale || !alreadyShown) {
         this.lastHandledRefreshToken = this.listRefreshToken
-        this.loadData()
+        // 缓现波由 loadData 在行挂载同 tick 起播，不在此提前起播（未命中缓存时波会先于行空跑，入场看似自底反向）
+        this.loadData(true)
         this.playHeroCount()
-        this.softRevealList()
       }
     } else {
       // 离开本 Tab：清空搜索词并立即重过滤，切回时恢复全量数据（避免停留在「无匹配结果」）
@@ -117,12 +120,9 @@ export struct CreditAccountsTab {
     this.applyFilter()
   }
 
-  /** 切入本 Tab：列表滚回顶部；列表未挂载（空态/骨架）时静默忽略 */
+  /** 切入本 Tab：无动画回顶，避免 Spring 过冲「上移再落下」；列表未挂载时静默忽略 */
   private resetListScrollToTop(): void {
-    try {
-      this.listScroller.scrollEdge(Edge.Top)
-    } catch (_err) {
-    }
+    scrollListToTopSilent(this.listScroller)
   }
 
   private cancelListRevealTimer(): void {
@@ -144,9 +144,8 @@ export struct CreditAccountsTab {
 
   private bumpListEnter(): void {
     this.playHeroCount()
-    if (this.mainTabIndex === 3) {
-      this.softRevealList()
-    } else {
+    // 当前 Tab 的缓现波由 loadData 在行挂载同 tick 起播；非当前 Tab 静默复位
+    if (this.mainTabIndex !== 3) {
       this.resetListRevealSilent()
     }
   }
@@ -191,7 +190,7 @@ export struct CreditAccountsTab {
     this.loadTheme(false)
     // Tab 常驻：仅当前就是本页时拉数，避免进首页连带扫账户表
     if (this.mainTabIndex === 3) {
-      this.loadData()
+      this.loadData(true)
       this.lastHandledRefreshToken = this.listRefreshToken
       this.bumpListEnter()
     } else {
@@ -249,7 +248,7 @@ export struct CreditAccountsTab {
   /** 并发 loadData 序号：切 Tab / 导入后仅最新一次写 UI */
   private loadSeq: number = 0
 
-  private async loadData(): Promise<void> {
+  private async loadData(revealOnArrive: boolean = false): Promise<void> {
     const seq = this.loadSeq + 1
     this.loadSeq = seq
     const epochAtStart = LocalDataStore.getEpoch()
@@ -258,7 +257,13 @@ export struct CreditAccountsTab {
       if (cached !== null && seq === this.loadSeq) {
         this.applyAccountList(cached, false)
         this.loading = false
+        // 缓存命中：行已同 tick 挂载，波即从 0 起播；晚于挂载起播会让顶部行先行就位，波看似自底反向
+        if (revealOnArrive && this.filteredAccounts.length > 0) {
+          this.softRevealList()
+        }
       }
+      // 缓存未命中（骨架屏期、列表未挂载）：数据就位同 tick 再整波从 0 起播，见函数尾
+      const revealPending = revealOnArrive && this.loading
       const list = await CreditAccountService.getCreditAccounts()
       if (seq !== this.loadSeq) {
         return
@@ -267,6 +272,12 @@ export struct CreditAccountsTab {
         LocalDataStore.setAccounts(list)
       }
       this.applyAccountList(list, true)
+      this.loading = false
+      this.consumeOpenDetail()
+      // 首帧数据与列表同 tick 就位：整波从 0 起播，行首帧即处于入场起点，波自顶部往下错峰展开
+      if (revealPending && this.filteredAccounts.length > 0) {
+        this.softRevealList()
+      }
     } catch {
       if (seq !== this.loadSeq) {
         return
@@ -278,10 +289,7 @@ export struct CreditAccountsTab {
       this.totalCreditLimit = 0
       this.expiringCount = 0
       this.billingCycleCount = 0
-    }
-    if (seq === this.loadSeq) {
       this.loading = false
-      this.consumeOpenDetail()
     }
   }
 
@@ -788,7 +796,7 @@ export struct CreditAccountsTab {
     })
   }
 
-  /** 列表项过渡：进入为逐项缓现（滚动懒挂载按当前进度取值，不重播），退出左滑淡出 */
+  /** 列表项过渡：进入为逐项自上落下缓现（滚动懒挂载按当前进度取值，不重播），退出左滑淡出 */
 
 
   /** 顶栏背景：随列表滚动淡入 surface2（不加阴影，阴影仅托出 Sheet/模态） */
@@ -1023,6 +1031,8 @@ export struct CreditAccountsTab {
             .width('100%')
             .layoutWeight(1)
             .cachedCount(6)
+            .clip(true)
+            .animation(listItemRevealNoImplicit())
             .scrollBar(BarState.Off)
             .edgeEffect(EdgeEffect.Spring)
             .onDidScroll(() => this.onListDidScroll())
@@ -1099,10 +1109,46 @@ export struct CreditAccountsTab {
     })
   }
 
-  /** 标题栏右上：排序/管理悬浮胶囊（surface2 + pill + floatShadow） */
+  private openAccountReceipt(): void {
+    const model = AccountReceipt.build(this.accounts)
+    if (model.itemCount === 0) {
+      AppToast.show('没有可分享的账户', 1600)
+      return
+    }
+    AppStorage.setOrCreate(AppStorageKeys.ACCOUNT_RECEIPT_MODEL, model)
+    AppStorage.setOrCreate(AppStorageKeys.SHOW_ACCOUNT_RECEIPT_OVERLAY, true)
+    this.showSortPanel = false
+  }
+
+  @Builder
+  shareBtn() {
+    Column() {
+      Image($r('app.media.ic_share'))
+        .width(20)
+        .height(20)
+        .fillColor(this.theme.text2)
+        .objectFit(ImageFit.Contain)
+    }
+    .width(36)
+    .height(32)
+    .justifyContent(FlexAlign.Center)
+    .onClick(() => {
+      this.openAccountReceipt()
+    })
+  }
+
+  /** 标题栏右上：分享/排序悬浮胶囊（surface2 + pill + floatShadow） */
   @Builder
   sortCapsule() {
     Row({ space: 0 }) {
+      if (this.shareEnabled) {
+        this.shareBtn()
+        Row()
+          .width(0.5)
+          .height(16)
+          .backgroundColor(this.theme.borderSoft)
+          .margin({ left: 2, right: 2 })
+      }
       this.sortFilterBtn()
     }
     .padding({ left: 3, right: 3, top: 3, bottom: 3 })

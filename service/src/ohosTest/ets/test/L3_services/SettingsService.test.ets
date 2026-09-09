@@ -35,6 +35,7 @@ function settingsRow(overrides: Record<string, string | number | boolean> = {}):
     cloud_sync_enabled: 1,
     monthly_budget_limit: 0,
     pressure_alert_enabled: 1,
+    share_enabled: 1,
     founding_member_no: 0,
     updated_at: '2024-11-14T10:00:00.000Z'
   }

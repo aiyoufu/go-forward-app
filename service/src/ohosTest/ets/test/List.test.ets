@@ -30,6 +30,7 @@ import speechServiceTest from './L4_aggregators/SpeechService.test'
 import iconPickerServiceTest from './L4_aggregators/IconPickerService.test'
 import iconCloudServiceTest from './L0_pure/IconCloudService.test'
 import debtReceiptTest from './L0_pure/DebtReceipt.test'
+import accountReceiptTest from './L0_pure/AccountReceipt.test'
 import billParsersTest from './L0_pure/BillParsers.test'
 import parsePromptsTest from './L0_pure/ParsePrompts.test'
 import ceremonyRulesTest from './L0_pure/CeremonyRules.test'
@@ -74,6 +75,7 @@ export default function testsuite() {
   debtsFilterSortTest()
   subscriptionReceiptTest()
   debtReceiptTest()
+  accountReceiptTest()
   billParsersTest()
   parsePromptsTest()
   ceremonyRulesTest()

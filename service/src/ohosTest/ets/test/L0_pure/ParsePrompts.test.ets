@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@ohos/hypium'
-import { buildUnifiedSystemPrompt, normalizeFlexibleDate } from '../../../../main/ets/service/ai/ParsePrompts'
+import { buildUnifiedSystemPrompt, coerceDebtTypeByPeriods, normalizeFlexibleDate } from '../../../../main/ets/service/ai/ParsePrompts'
 
 // 提示词回归：统一提示词（文字/图片共用）的语义原则锁。
 // 设计意图：按概念本质引导模型通用理解，先判定再提取；不做逐文案/逐格式枚举。
@@ -29,6 +29,21 @@ export default function parsePromptsTest() {
       expect(p.indexOf('无多期计划') >= 0).assertTrue()
       expect(p.indexOf('不是下单') >= 0).assertTrue()
       expect(p.indexOf('月付类产品') >= 0).assertTrue()
+    })
+
+    it('逐期列表优先于商品页月付_不得收成一次性', 0, () => {
+      // 电商「分期详情」：商品名/商品页 + 序号+金额+日期列表，曾被「月付类产品同样处理」收成一次性
+      expect(p.indexOf('序号+金额+日期') >= 0).assertTrue()
+      expect(p.indexOf('仍是分期') >= 0).assertTrue()
+      expect(p.indexOf('同样处理') < 0).assertTrue()
+    })
+
+    it('coerceDebtTypeByPeriods_多期覆盖一次性', 0, () => {
+      expect(coerceDebtTypeByPeriods('credit_card', 6, 6)).assertEqual('installment')
+      expect(coerceDebtTypeByPeriods('credit_card', 1, 6)).assertEqual('installment')
+      expect(coerceDebtTypeByPeriods('credit_card', 1, 1)).assertEqual('credit_card')
+      expect(coerceDebtTypeByPeriods('installment', 6, 6)).assertEqual('installment')
+      expect(coerceDebtTypeByPeriods('loan', 12, 12)).assertEqual('loan')
     })
 
     it('字段契约完整', 0, () => {

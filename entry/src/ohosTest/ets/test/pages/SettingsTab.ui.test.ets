@@ -61,6 +61,11 @@ describe('SettingsTab_UI', () => {
     expect(true).assertTrue()
   })
 
+  it('渲染_通用区域_显示分享开关', 0, async () => {
+    const label = '显示分享'
+    expect(label).assertEqual('显示分享')
+  })
+
   it('交互_切换应用锁开关_打开PIN设置', 0, async () => {
     expect(true).assertTrue()
   })

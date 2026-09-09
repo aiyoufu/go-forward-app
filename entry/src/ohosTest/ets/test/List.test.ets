@@ -24,6 +24,7 @@ import entryAbilityTest from './entryability/EntryAbility.test'
 import listSelectionTest from './L0_pure/ListSelection.test'
 import debtFormMathTest from './L0_pure/DebtFormMath.test'
 import settingsDisplayTest from './L0_pure/SettingsDisplay.test'
+import listRevealTest from './L0_pure/ListReveal.test'
 
 // Entry 页面 UI 测试
 import dashboardTabUITest from './pages/DashboardTab.ui.test'
@@ -86,6 +87,7 @@ export default function testsuite() {
   listSelectionTest()
   debtFormMathTest()
   settingsDisplayTest()
+  listRevealTest()
 
   // Entry 页面 UI 测试
   dashboardTabUITest()

@@ -47,11 +47,11 @@ export class MotionHelper {
 
   /**
    * 列表逐项缓现约定（页面侧实现，见 entry ListReveal）：
-   * 1) 显式初值 revealT=0（每项 opacity=0 + translateY=offset，无动画）
-   * 2) 下一帧起播全局进度 t 0->1，每项按 index 错峰、局部 EaseOut
+   * 1) 显式初值 revealT=0（每项 opacity=0 + translateY=-offset，无动画）
+   * 2) 下一帧起播全局进度 t 0->1，每项按 index 错峰、局部 EaseOut、自上落下
    * 3) 离开页/Tab：无动画复位初值（用户不可见，不闪）
    * 4) 滚动懒挂载的行按当前进度取值；滚动、同页刷新：不重播
-   * 禁止：可见态闪灭再播
+   * 禁止：可见态闪灭再播；禁止自下抬起或过冲回落
    */
   static readonly LIST_REVEAL_FRAME_MS: number = 16
 

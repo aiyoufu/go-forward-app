@@ -182,6 +182,27 @@ export default function themeManagerTest() {
       })
     })
 
+    describe('ThemeColors.objectStageShadowOptions', () => {
+      it('深色比 float 更厚', 0, () => {
+        const c = ThemeManager.DARK
+        const o = c.objectStageShadowOptions()
+        expect(o.radius).assertEqual(22)
+        expect(o.color).assertEqual('rgba(0,0,0,0.32)')
+        expect(o.offsetX).assertEqual(0)
+        expect(o.offsetY).assertEqual(10)
+        expect(Number(o.radius) > c.floatShadowRadius()).assertTrue()
+        expect(Number(o.offsetY) > c.floatShadowOffsetY()).assertTrue()
+      })
+      it('浅色克制暖黑', 0, () => {
+        const c = ThemeManager.LIGHT
+        const o = c.objectStageShadowOptions()
+        expect(o.radius).assertEqual(20)
+        expect(o.color).assertEqual('rgba(40,30,20,0.10)')
+        expect(o.offsetX).assertEqual(0)
+        expect(o.offsetY).assertEqual(8)
+      })
+    })
+
     describe('ThemeColors.sheetMaskColor', () => {
       it('深色画布返回较深遮罩', 0, () => {
         const c = ThemeManager.DARK
@@ -404,6 +425,7 @@ export default function themeManagerTest() {
       expect(MotionTokens.listItemRevealStagger).assertEqual(26)
       expect(MotionTokens.listItemRevealStaggerCap).assertEqual(8)
       expect(MotionTokens.listItemRevealOffsetY).assertEqual(12)
+      expect(MotionTokens.instantDuration).assertEqual(0)
       // 错峰封顶：第 cap 项之后 delay 不再增长
       expect(MotionTokens.listItemRevealDelay(3)).assertEqual(78)
       expect(MotionTokens.listItemRevealDelay(20)).assertEqual(MotionTokens.listItemRevealDelay(8))

@@ -2,7 +2,7 @@ import { AppStorageKeys } from './AppStorageKeys'
 
 export class Constants {
   static readonly DB_NAME: string = 'GoForward.db'
-  /** 历史常量；库表世代以 DbService.SCHEMA_VERSION 为准（当前 3） */
+  /** 历史常量；库表世代以 DbService.SCHEMA_VERSION 为准（当前 5） */
   static readonly DB_VERSION: number = 1
   static readonly PREFERENCES_NAME: string = 'GoForwardPrefs'
   static readonly HUKS_KEY_ALIAS: string = 'goforward_master_key'

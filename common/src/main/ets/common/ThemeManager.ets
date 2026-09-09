@@ -266,7 +266,7 @@ export class ThemeColors {
   }
 
   /**
-   * 页内浮面板阴影一次对象（首页摘要组 / List 容器 / Tab hero / 设置组 / 骨架组）
+   * 页内浮面板阴影一次对象（List 容器 / Tab hero / 设置组 / 骨架组）
    * 用法：`.shadow(this.theme.floatShadowOptions())`，禁止手写三件套以免漂移
    */
   floatShadowOptions(): ShadowOptions {
@@ -279,7 +279,7 @@ export class ThemeColors {
   }
 
   /**
-   * 物件主舞台阴影（仅金额门面等唯一大卡；比 float 略厚，仍禁止 glow）
+   * 物件主舞台 / 首页卡片悬浮阴影（待还总览及同级卡共用；比 float 略厚，仍禁止 glow）
    */
   objectStageShadowOptions(): ShadowOptions {
     return {

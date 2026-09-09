@@ -22,7 +22,7 @@ import { AIParseOrchestrator } from 'service'
 import { UserService } from 'service'
 import { LightReading, LightSensorService } from 'service'
 import { ReceiptModel } from 'service'
-import { DebtReceiptModel } from 'service'
+import { DebtReceiptModel, AccountReceiptModel } from 'service'
 import { SheetDialogView, SheetDialogConfig, SheetDialogButton } from 'components'
 import lazy { AILiveOverlay } from '../components/AILiveOverlay'
 import { AllClearedCeremonyOverlay } from 'components'
@@ -64,6 +64,8 @@ export struct MainPage {
   @StorageLink('showReceiptOverlay') showReceiptOverlay: boolean = false
   /** 负债小票：DebtsTab 写入 AppStorage，本页全屏盖住底栏 */
   @StorageLink('showDebtReceiptOverlay') showDebtReceiptOverlay: boolean = false
+  /** 账户小票：CreditAccountsTab 写入 AppStorage，本页全屏盖住底栏 */
+  @StorageLink('showAccountReceiptOverlay') showAccountReceiptOverlay: boolean = false
   /** keyboard | camera | album —— 打开 AI Live 时的入口（系统听写在 Live 胶囊条内） */
   @State aiLaunchMode: string = 'keyboard'
   @State sheetConfig: SheetDialogConfig = new SheetDialogConfig()
@@ -563,6 +565,10 @@ export struct MainPage {
       this.showDebtReceiptOverlay = false
       return true
     }
+    if (this.showAccountReceiptOverlay) {
+      this.showAccountReceiptOverlay = false
+      return true
+    }
     if (this.showAILive) {
       this.showAILive = false
       return true
@@ -842,6 +848,20 @@ export struct MainPage {
           ),
           onClose: () => {
             this.showDebtReceiptOverlay = false
+          }
+        })
+      }
+
+      // 账户小票：全屏磨砂浮层，居中盖住底栏
+      if (this.showAccountReceiptOverlay) {
+        ReceiptSlipOverlay({
+          theme: this.theme,
+          model: ReceiptSlipModel.fromAccount(
+            AppStorage.get<AccountReceiptModel>(AppStorageKeys.ACCOUNT_RECEIPT_MODEL) ??
+              new AccountReceiptModel()
+          ),
+          onClose: () => {
+            this.showAccountReceiptOverlay = false
           }
         })
       }

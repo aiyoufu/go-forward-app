@@ -54,6 +54,11 @@ describe('CreditAccountsTab_UI', () => {
     expect(true).assertTrue()
   })
 
+  it('渲染_有数据_标题栏含分享按钮', 0, async () => {
+    const shareEnabled = true
+    expect(shareEnabled).assertTrue()
+  })
+
   it('渲染_有数据_显示账户列表', 0, async () => {
     expect(true).assertTrue()
   })

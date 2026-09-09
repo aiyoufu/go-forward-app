@@ -121,6 +121,18 @@ export default function appStorageKeysTest() {
       })
     })
 
+    describe('分享与小票键', () => {
+      it('SHARE_ENABLED值正确', 0, () => {
+        expect(AppStorageKeys.SHARE_ENABLED).assertEqual('shareEnabled')
+      })
+      it('SHOW_ACCOUNT_RECEIPT_OVERLAY值正确', 0, () => {
+        expect(AppStorageKeys.SHOW_ACCOUNT_RECEIPT_OVERLAY).assertEqual('showAccountReceiptOverlay')
+      })
+      it('ACCOUNT_RECEIPT_MODEL值正确', 0, () => {
+        expect(AppStorageKeys.ACCOUNT_RECEIPT_MODEL).assertEqual('accountReceiptModel')
+      })
+    })
+
     describe('全部还清仪式键', () => {
       it('SHOW_ALL_CLEARED_CEREMONY值正确', 0, () => {
         expect(AppStorageKeys.SHOW_ALL_CLEARED_CEREMONY).assertEqual('showAllClearedCeremony')

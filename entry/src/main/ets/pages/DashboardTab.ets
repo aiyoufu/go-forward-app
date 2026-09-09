@@ -752,14 +752,14 @@ export struct DashboardTab {
       .borderRadius(this.theme.radiusXl)
       .border({ width: 1, color: this.theme.borderSoft })
       .clip(true)
-      .shadow(this.theme.floatShadowOptions())
+      .shadow(this.theme.objectStageShadowOptions())
       Column()
         .width('100%')
         .height(120)
         .backgroundColor(this.theme.surface2)
         .borderRadius(this.theme.radiusXl)
         .border({ width: 1, color: this.theme.borderSoft })
-        .shadow(this.theme.floatShadowOptions())
+        .shadow(this.theme.objectStageShadowOptions())
     }
     .width('100%')
   }
@@ -890,7 +890,7 @@ export struct DashboardTab {
   /**
    * 金额主舞台（表盘感）：
    * - 唯一焦点数字 heroNumberDial；下月/总待还/还清为次要列
-   * - 右走势图与次要列同高；唯一 objectStage 阴影
+   * - 右走势图与次要列同高；悬浮阴影走 objectStage（首页卡片共用）
    */
   @Builder
   debtCardBuilder() {
@@ -1127,7 +1127,7 @@ export struct DashboardTab {
   }
 
   /**
-   * 需要关注：次要底座；仅 need/upcoming 非空时渲染
+   * 需要关注：仅 need/upcoming 非空时渲染；悬浮阴影与待还总览同 objectStage
    */
   @Builder
   actionCardBuilder() {
@@ -1162,6 +1162,7 @@ export struct DashboardTab {
     .borderRadius(this.theme.radiusLg)
     .border({ width: 1, color: this.theme.borderSoft })
     .clip(true)
+    .shadow(this.theme.objectStageShadowOptions())
   }
 
   @Builder
@@ -1290,6 +1291,8 @@ export struct DashboardTab {
     .backgroundColor(this.theme.surface2)
     .borderRadius(this.theme.radiusLg)
     .border({ width: 1, color: this.theme.borderSoft })
+    .clip(true)
+    .shadow(this.theme.objectStageShadowOptions())
   }
 
   /**
@@ -1364,6 +1367,8 @@ export struct DashboardTab {
     .backgroundColor(this.theme.surface2)
     .borderRadius(this.theme.radiusLg)
     .border({ width: 1, color: this.theme.borderSoft })
+    .clip(true)
+    .shadow(this.theme.objectStageShadowOptions())
   }
 
   @Builder

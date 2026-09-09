@@ -36,6 +36,10 @@ export class SettingsService {
     // 空操作
   }
 
+  static async updateShareEnabled(enabled: boolean): Promise<void> {
+    // 空操作
+  }
+
   static async updateCloudSync(enabled: boolean): Promise<void> {
     // 空操作
   }

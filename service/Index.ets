@@ -60,6 +60,7 @@ export { SettingsAiBackup, AiBackupSnapshot } from './src/main/ets/service/Setti
 export { SpeechResultCallback, SpeechLevelCallback, SpeechPartialCallback, SpeechService } from './src/main/ets/service/ai/SpeechService.ets'
 export { SubscriptionReceipt, ReceiptModel, ReceiptLine, ReceiptShare } from './src/main/ets/service/SubscriptionReceipt'
 export { DebtReceipt, DebtReceiptModel } from './src/main/ets/service/DebtReceipt'
+export { AccountReceipt, AccountReceiptModel } from './src/main/ets/service/AccountReceipt'
 export { SubscriptionService } from './src/main/ets/service/SubscriptionService'
 export { AuthSession, AuthResult, AuthUserProfile, SupabaseAuthUser, SupabaseAuthResponse, SignInRequest, SignUpRequest, RecoverRequest, RefreshTokenRequest, UpdatePasswordRequest, VerifyRecoveryRequest, SupabaseAuthService } from './src/main/ets/service/auth/SupabaseAuthService.ets'
 export { SupabaseRestOptions, SupabaseRestResponse, SupabaseRestService } from './src/main/ets/service/SupabaseRestService'

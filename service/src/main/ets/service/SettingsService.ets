@@ -5,7 +5,7 @@ import { ThemeMode } from 'common'
 import { E2EEService } from './auth/E2EEService'
 import { CryptoService } from './auth/CryptoService'
 import { UserService } from './UserService'
-import { Constants } from 'common'
+import { AppStorageKeys, Constants } from 'common'
 import { SyncOutbox } from './sync/SyncOutbox'
 import { SettingsAiBackup } from './SettingsAiBackup'
 
@@ -29,6 +29,7 @@ export class SettingsService {
 
   static async getSettings(userId: string): Promise<UserSettings> {
     if (SettingsService.cache !== null && SettingsService.cacheUserId === userId) {
+      SettingsService.publishShareEnabled(SettingsService.cache.share_enabled)
       return SettingsService.cloneSettings(SettingsService.cache)
     }
     const rs = await DbService.query(
@@ -54,6 +55,7 @@ export class SettingsService {
       SettingsAiBackup.repairEnabled(def)
       SettingsService.cache = def
       SettingsService.cacheUserId = userId
+      SettingsService.publishShareEnabled(def.share_enabled)
       return SettingsService.cloneSettings(def)
     }
     const row = SettingsService.rowToObject(rs)
@@ -71,6 +73,7 @@ export class SettingsService {
     SettingsAiBackup.repairEnabled(settings)
     SettingsService.cache = settings
     SettingsService.cacheUserId = userId
+    SettingsService.publishShareEnabled(settings.share_enabled)
     return SettingsService.cloneSettings(settings)
   }
 
@@ -115,6 +118,7 @@ export class SettingsService {
     }
     SettingsService.cache = SettingsService.cloneSettings(settings)
     SettingsService.cacheUserId = userId
+    SettingsService.publishShareEnabled(settings.share_enabled)
     try {
       await SyncOutbox.enqueueUpsert(Constants.TABLE_USER_SETTINGS, userId, userId)
     } catch {
@@ -173,6 +177,19 @@ export class SettingsService {
     const settings = await SettingsService.getSettings(UserService.getCurrentUserId())
     settings.hand_awareness_enabled = enabled
     await SettingsService.saveSettings(settings)
+  }
+
+  static async updateShareEnabled(enabled: boolean): Promise<void> {
+    const settings = await SettingsService.getSettings(UserService.getCurrentUserId())
+    settings.share_enabled = enabled
+    await SettingsService.saveSettings(settings)
+  }
+
+  static publishShareEnabled(enabled: boolean): void {
+    try {
+      AppStorage.setOrCreate(AppStorageKeys.SHARE_ENABLED, enabled)
+    } catch (_e) {
+    }
   }
 
   static async updateThemeMode(mode: ThemeMode): Promise<void> {
@@ -248,6 +265,7 @@ export class SettingsService {
     s.light_sense_enabled = src.light_sense_enabled
     s.eye_care_enabled = src.eye_care_enabled
     s.hand_awareness_enabled = src.hand_awareness_enabled
+    s.share_enabled = src.share_enabled
     s.theme_mode = src.theme_mode
     s.cloud_sync_enabled = src.cloud_sync_enabled
     s.monthly_budget_limit = src.monthly_budget_limit
@@ -324,6 +342,7 @@ export class SettingsService {
     s.light_sense_enabled = DbService.intToBool(src['light_sense_enabled'] as number ?? 0)
     s.eye_care_enabled = DbService.intToBool(src['eye_care_enabled'] as number)
     s.hand_awareness_enabled = DbService.intToBool(src['hand_awareness_enabled'] as number ?? 1)
+    s.share_enabled = DbService.intToBool(src['share_enabled'] as number ?? 1)
     const mode = '' + (src['theme_mode'] ?? 'system')
     s.theme_mode = (mode === 'light' || mode === 'dark' || mode === 'system') ? mode : 'system'
     s.cloud_sync_enabled = DbService.intToBool(src['cloud_sync_enabled'] as number ?? 1)
@@ -364,6 +383,7 @@ export class SettingsService {
     obj['light_sense_enabled'] = DbService.boolToInt(settings.light_sense_enabled)
     obj['eye_care_enabled'] = DbService.boolToInt(settings.eye_care_enabled)
     obj['hand_awareness_enabled'] = DbService.boolToInt(settings.hand_awareness_enabled)
+    obj['share_enabled'] = DbService.boolToInt(settings.share_enabled)
     obj['theme_mode'] = settings.theme_mode
     obj['cloud_sync_enabled'] = DbService.boolToInt(settings.cloud_sync_enabled)
     obj['monthly_budget_limit'] = settings.monthly_budget_limit

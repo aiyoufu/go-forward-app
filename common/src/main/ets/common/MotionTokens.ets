@@ -23,6 +23,7 @@ export class MotionTokens {
   /**
    * 列表逐项缓现（Apple per-row 模型：列表不整体动，行各自入场）
    * - 每项 opacity + translateY（图形变换），按 index 错峰
+   * - 位移自上落下（负 Y → 0），波从顶部往下展开；禁止自下抬起
    * - 错峰封顶：长表尾部与第 cap 项同时入场，总时长可控
    * - 进入 Tab 播一次；滚动懒挂载按当前进度取值，刷新不重播
    */
@@ -32,8 +33,10 @@ export class MotionTokens {
   static readonly listItemRevealStagger: number = 26
   /** 错峰封顶项数 */
   static readonly listItemRevealStaggerCap: number = 8
-  /** 单项自下抬起 vp（transform，不改布局） */
+  /** 单项自上落下位移幅度 vp（transform；起点为 -offsetY，不改布局） */
   static readonly listItemRevealOffsetY: number = 12
+  /** 禁止隐式插值：帧驱动属性立刻跟上，避免过冲回落 */
+  static readonly instantDuration: number = 0
 
   /**
    * 通知抽屉入场（自顶向下）

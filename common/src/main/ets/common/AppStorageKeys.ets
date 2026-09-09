@@ -124,4 +124,16 @@ export class AppStorageKeys {
   static readonly SHOW_DEBT_RECEIPT_OVERLAY: string = 'showDebtReceiptOverlay'
   /** 写 DebtsTab；读 MainPage 传入浮层 */
   static readonly DEBT_RECEIPT_MODEL: string = 'debtReceiptModel'
+
+  // -- 账户小票（MainPage 全屏层，需盖住悬浮底栏）--
+  /** 写 CreditAccountsTab；链 MainPage */
+  static readonly SHOW_ACCOUNT_RECEIPT_OVERLAY: string = 'showAccountReceiptOverlay'
+  /** 写 CreditAccountsTab；读 MainPage 传入浮层 */
+  static readonly ACCOUNT_RECEIPT_MODEL: string = 'accountReceiptModel'
+
+  /**
+   * 列表页是否显示分享按钮。写 SettingsTab/SettingsService；链 负债/订阅/账户 Tab。
+   * 默认 true（与历史始终显示一致）。
+   */
+  static readonly SHARE_ENABLED: string = 'shareEnabled'
 }

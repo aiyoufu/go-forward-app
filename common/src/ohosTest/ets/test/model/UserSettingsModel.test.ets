@@ -31,6 +31,7 @@ export default function userSettingsModelTest() {
         expect(s.cloud_sync_enabled).assertTrue()
         expect(s.monthly_budget_limit).assertEqual(0)
         expect(s.pressure_alert_enabled).assertTrue()
+        expect(s.share_enabled).assertTrue()
         expect(s.founding_member_no).assertEqual(0)
         expect(s.profile_nickname).assertEqual('')
         expect(s.profile_signature).assertEqual('')

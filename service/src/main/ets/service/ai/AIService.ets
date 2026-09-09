@@ -3,7 +3,7 @@ import { BusinessError } from '@kit.BasicServicesKit'
 import { AIChannelConfig } from 'common'
 import { SettingsService } from '../SettingsService'
 import { UserService } from '../UserService'
-import { buildUnifiedSystemPrompt, normalizeFlexibleDate } from './ParsePrompts'
+import { buildUnifiedSystemPrompt, coerceDebtTypeByPeriods, normalizeFlexibleDate } from './ParsePrompts'
 
 export class ParseResultItem {
   tempId: string = ''
@@ -195,7 +195,7 @@ export class AIService {
     }
     const userContent = isImage
       ? '[' +
-      '{"type":"text","text":"提取财务信息，只返回JSON。"},' +
+      '{"type":"text","text":"先判定有无多期还款计划再提取，只返回JSON。"},' +
       '{"type":"image_url","image_url":{"url":"data:image/jpeg;base64,' + jpegBase64 + '","detail":"high"}}' +
       ']'
       : JSON.stringify(userText)
@@ -437,14 +437,20 @@ export class AIService {
         const preferFuture = key === 'next_payment_date' || key === 'next_billing_date'
         item.parsedFields.set(key, normalizeFlexibleDate(`${v}`, currentDate, monthOnly, preferFuture))
       }
-      // 期数一致性：分期且总期数有效时，剩余期数收敛到 [1, total]
+      // 期数一致性：多期不得落成一次性；分期且总期数有效时 remaining 收敛到 [1, total]
       if (item.recordType === 'debt') {
-        const dt = item.parsedFields.get('debt_type')
+        const dtRaw = `${item.parsedFields.get('debt_type') ?? ''}`
         const total = item.parsedFields.get('total_periods')
         const remain = item.parsedFields.get('remaining_periods')
-        if (dt === 'installment' && typeof total === 'number' && total > 0) {
-          if (typeof remain !== 'number' || remain < 1 || remain > total) {
-            item.parsedFields.set('remaining_periods', total)
+        const totalN = typeof total === 'number' ? total : 0
+        const remainN = typeof remain === 'number' ? remain : 0
+        const dt = coerceDebtTypeByPeriods(dtRaw, totalN, remainN)
+        if (dt !== dtRaw) {
+          item.parsedFields.set('debt_type', dt)
+        }
+        if (dt === 'installment' && totalN > 0) {
+          if (typeof remain !== 'number' || remainN < 1 || remainN > totalN) {
+            item.parsedFields.set('remaining_periods', totalN)
           }
         }
         const platform = item.parsedFields.get('platform')

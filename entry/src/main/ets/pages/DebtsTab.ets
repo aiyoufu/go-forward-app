@@ -34,7 +34,7 @@ import { ErrorMessages } from 'common'
 import { willClearAllAfterRepay } from 'service'
 import { ListSelection, runBatchDelete } from './common/ListSelection'
 import { BatchSelectHeader, BatchActionOverlay } from './common/BatchShell'
-import { ListReveal, HeroCounter, listExitTransition, listItemRevealProgress, listItemRevealTranslateY, topBarFadeRatio } from './common/ListReveal'
+import { ListReveal, HeroCounter, listExitTransition, listItemRevealProgress, listItemRevealTranslateY, listItemRevealNoImplicit, scrollListToTopSilent, topBarFadeRatio } from './common/ListReveal'
 import { fetchEffectiveTheme } from './common/ThemeLoader'
 
 @Component
@@ -63,6 +63,8 @@ export struct DebtsTab {
   @StorageProp(AppStorageKeys.TOP_SAFE_HEIGHT) topSafe: number = 0
   /** 防窥脱敏态：系统检测到窥视时主数字/预览指标打码（AntiPeekService 驱动） */
   @StorageProp(AppStorageKeys.ANTI_PEEK_MASKED) antiPeekMasked: boolean = false
+  /** 设置「显示分享」：关则标题栏不渲染分享按钮 */
+  @StorageProp(AppStorageKeys.SHARE_ENABLED) shareEnabled: boolean = true
   @State isRefreshing: boolean = false
   @State showSheet: boolean = false
   @State isRepaySheet: boolean = false
@@ -154,12 +156,9 @@ export struct DebtsTab {
     this.applyFilterSort()
   }
 
-  /** 切入本 Tab：列表滚回顶部；列表未挂载（空态/骨架）时静默忽略 */
+  /** 切入本 Tab：无动画回顶，避免 Spring 过冲「上移再落下」；列表未挂载时静默忽略 */
   private resetListScrollToTop(): void {
-    try {
-      this.listScroller.scrollEdge(Edge.Top)
-    } catch (_err) {
-    }
+    scrollListToTopSilent(this.listScroller)
   }
 
   private cancelListRevealTimer(): void {
@@ -841,7 +840,7 @@ export struct DebtsTab {
     }
   }
 
-  /** 列表项过渡：进入为逐项缓现（滚动懒挂载按当前进度取值，不重播），退出左滑淡出 */
+  /** 列表项过渡：进入为逐项自上落下缓现（滚动懒挂载按当前进度取值，不重播），退出左滑淡出 */
 
 
   /** 顶栏背景：随列表滚动淡入 surface2（不加阴影，阴影仅托出 Sheet/模态） */
@@ -1178,12 +1177,14 @@ export struct DebtsTab {
   @Builder
   filterSortCapsule() {
     Row({ space: 0 }) {
-      this.shareBtn()
-      Row()
-        .width(0.5)
-        .height(16)
-        .backgroundColor(this.theme.borderSoft)
-        .margin({ left: 2, right: 2 })
+      if (this.shareEnabled) {
+        this.shareBtn()
+        Row()
+          .width(0.5)
+          .height(16)
+          .backgroundColor(this.theme.borderSoft)
+          .margin({ left: 2, right: 2 })
+      }
       this.filterStatusBtn()
       this.sortFilterBtn()
     }
@@ -1460,6 +1461,8 @@ export struct DebtsTab {
               .width('100%')
               .layoutWeight(1)
               .cachedCount(6)
+              .clip(true)
+              .animation(listItemRevealNoImplicit())
               .scrollBar(BarState.Off)
               .edgeEffect(EdgeEffect.Spring)
               .onReachEnd(() => this.loadMore())

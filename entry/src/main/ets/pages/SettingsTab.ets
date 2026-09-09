@@ -99,6 +99,8 @@ export struct SettingsTab {
   /** 防窥保护开关：系统检测到他人窥视屏幕时自动打码金额/名称/日期等敏感文本 */
   @State antiPeekEnabled: boolean = false
   @State handAwarenessEnabled: boolean = true
+  /** 列表页标题栏分享按钮 */
+  @State shareEnabled: boolean = true
   /** AI Live「去配置」：切到设置 Tab 并打开 AI 配置 Sheet */
   @StorageLink('settingsOpenAISheet') @Watch('onOpenAISheetRequest') openAISheetFlag: boolean = false
   private isResettingToggle: boolean = false
@@ -389,6 +391,8 @@ export struct SettingsTab {
     AppStorage.setOrCreate(AppStorageKeys.APP_LOCK_ENABLED, this.appLockEnabled)
     this.antiPeekEnabled = AntiPeekService.isEnabled()
     this.handAwarenessEnabled = this.settings.hand_awareness_enabled
+    this.shareEnabled = this.settings.share_enabled
+    AppStorage.setOrCreate(AppStorageKeys.SHARE_ENABLED, this.shareEnabled)
     this.refreshAISummary()
     this.loadAvatar()
   }
@@ -435,6 +439,23 @@ export struct SettingsTab {
     } catch (_e) {
       AppToast.show(ErrorMessages.SAVE_FAILED, 2000)
       HandednessService.setEnabled(!on)
+    }
+  }
+
+  /** 分享按钮总开关：持久化 + 立刻反映到负债/订阅/账户标题栏 */
+  private async onShareEnabledToggle(on: boolean): Promise<void> {
+    const prev = this.shareEnabled
+    this.shareEnabled = on
+    this.settings.share_enabled = on
+    AppStorage.setOrCreate(AppStorageKeys.SHARE_ENABLED, on)
+    try {
+      await SettingsService.updateShareEnabled(on)
+      AppToast.show(on ? '已显示分享' : '已隐藏分享', 1500)
+    } catch (_e) {
+      this.shareEnabled = prev
+      this.settings.share_enabled = prev
+      AppStorage.setOrCreate(AppStorageKeys.SHARE_ENABLED, prev)
+      AppToast.show(ErrorMessages.SAVE_FAILED, 2000)
     }
   }
 
@@ -1198,6 +1219,18 @@ export struct SettingsTab {
               toggled: this.handAwarenessEnabled,
               onToggle: (v: boolean) => {
                 this.onHandAwarenessToggle(v)
+              }
+            })
+            Divider().color(this.theme.border).strokeWidth(0.5).margin({ left: 52 })
+            SettingsItem({
+              icon: $r('app.media.ic_share'),
+              label: '显示分享',
+              value: '',
+              theme: this.theme,
+              toggle: true,
+              toggled: this.shareEnabled,
+              onToggle: (v: boolean) => {
+                this.onShareEnabledToggle(v)
               }
             })
           }

@@ -21,8 +21,8 @@ export function buildUnifiedSystemPrompt(currentDate: string): string {
 debt=欠款（含分期、月付/先享后付待还）
 subscription=持续服务周期付费（名含月≠订阅）
 credit_account=只描述卡（尾号/额度/账单日/还款日），无欠款
-分期=有多期还款计划（还款日逐月重复或逐期列表）；商品、贴息、手续费、金额都不影响判定。
-一次性=全文无多期计划、单笔到期应还→credit_card；还款日不是下单时间；月付类产品同样处理。
+分期=有多期还款计划（还款日逐月重复或序号+金额+日期的逐期列表）；商品、贴息、手续费、金额都不影响判定。
+一次性=全文无多期计划、单笔到期应还→credit_card；还款日不是下单时间。月付类产品有逐期列表仍是分期。
 
 【提取】金额元。
 debt: platform,debt_type(installment|credit_card|loan|other),principal,current_balance,monthly_payment,total_periods,remaining_periods,annual_rate,currency,bill_day,payment_day,last_four,start_date,next_payment_date,repayment_plan,note
@@ -32,6 +32,19 @@ credit_account: name,last_four,bill_day,payment_day,credit_limit,currency,expiry
 写出的剩余期数禁止再算覆盖。已还=还款日严格早于今天或已标明已还；否则remaining=total（勿减1）。勿把下月账单当本月需还。
 {"items":[{"temp_id":"1","record_type":"debt","parsed_fields":{},"confidence":{},"is_complete":true}],"clarify_question":null,"is_complete":true}
 见[输入已截断]只提取可见部分。无信息则items=[]。`
+}
+
+/**
+ * 多期计划不得落成一次性：total 或 remaining > 1 时 credit_card → installment。
+ * 贷款等其他类型不改。
+ */
+export function coerceDebtTypeByPeriods(debtType: string, totalPeriods: number,
+  remainingPeriods: number = 0): string {
+  const n = totalPeriods > remainingPeriods ? totalPeriods : remainingPeriods
+  if (n > 1 && debtType === 'credit_card') {
+    return 'installment'
+  }
+  return debtType
 }
 
 function pad2(n: number): string {

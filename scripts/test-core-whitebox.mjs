@@ -241,11 +241,12 @@ function extractMethod(source, methodSig) {
 // ─── 9) DbService schema v3 + home_snapshot ───
 {
   const src = read('service/src/main/ets/service/DbService.ets')
-  if (!src.includes('SCHEMA_VERSION: number = 3')) fail('SCHEMA_VERSION not 3')
+  if (!src.includes('SCHEMA_VERSION: number = 5')) fail('SCHEMA_VERSION not 5')
   if (!src.includes('ensureUserSettingsAiColumns')) fail('ensureUserSettingsAiColumns missing')
   if (!src.includes('home_snapshot')) fail('home_snapshot table missing')
   if (!src.includes('schema_meta')) fail('schema_meta missing')
-  ok('DbService schema v3 + home_snapshot + AI columns')
+  if (!src.includes('share_enabled INTEGER DEFAULT 1')) fail('user_settings missing share_enabled')
+  ok('DbService schema v5 + home_snapshot + AI columns + share_enabled')
 }
 
 // ─── 10) Settings peekCache ───
@@ -335,6 +336,13 @@ function extractMethod(source, methodSig) {
   if (!dash.includes('return this.debtTrend')) fail('Dashboard sparkline must use cached debtTrend')
   if (!dash.includes('skipGrow: true')) fail('Dashboard PressureChart must skipGrow')
   if (!dash.includes('if (this.mainTabForEnter !== 0)')) fail('Dashboard onListRefresh must skip off-tab')
+  if (dash.includes('floatShadowOptions()')) {
+    fail('Dashboard homepage cards must use objectStageShadow like 待还总览, not float')
+  }
+  const homeCardShadows = (dash.match(/objectStageShadowOptions\(\)/g) || []).length
+  if (homeCardShadows < 6) {
+    fail(`Dashboard homepage cards must share objectStageShadow, found ${homeCardShadows}`)
+  }
   const debts = read('entry/src/main/ets/pages/DebtsTab.ets')
   if (!debts.includes('if (this.mainTabIndex !== 1)')) fail('DebtsTab onListRefresh must skip off-tab')
   const card = read('components/src/main/ets/components/DebtCard.ets')

@@ -1,6 +1,6 @@
 import { ThemeColors, TypeScale, Utils, AppStorageKeys, CurrencyService } from 'common'
 import { AppToast, ErrorMessages } from 'common'
-import { ReceiptLine, ReceiptModel, DebtReceiptModel } from 'service'
+import { ReceiptLine, ReceiptModel, DebtReceiptModel, AccountReceiptModel } from 'service'
 import { ReceiptShareKit } from './ReceiptShareKit'
 // SaveButton / SaveDescription / SaveButtonOnClickResult
 // 为 ArkUI 安全控件全局类型，勿从 @kit.ArkUI 具名导入（SDK 未导出，会编译失败）
@@ -49,6 +49,18 @@ export class ReceiptSlipModel {
     slip.snapshotPrefix = 'goforward_debt_'
     slip.shareTitle = '我的负债小票'
     slip.shareSubject = '向前 · 负债进度'
+    return slip
+  }
+
+  static fromAccount(model: AccountReceiptModel): ReceiptSlipModel {
+    const slip = new ReceiptSlipModel()
+    slip.lines = model.lines
+    slip.totalLabel = '总额度'
+    slip.totalFen = model.totalLimitFen
+    slip.posterId = 'accountReceiptPoster'
+    slip.snapshotPrefix = 'goforward_acct_'
+    slip.shareTitle = '我的账户小票'
+    slip.shareSubject = '向前 · 账户额度'
     return slip
   }
 }
